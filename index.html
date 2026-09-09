@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>Beyond the Scale — Carnatic Rāga Listening Survey</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Progress bar, always at the very top -->
+<div id="progress-track"><div id="progress-fill"></div></div>
+
+<!-- Step indicator, top-left -->
+<div id="step-indicator" class="step-indicator hidden" aria-live="polite">
+  <span id="step-current">1</span>/<span id="step-total">6</span>
+</div>
+
+<main id="app">
+
+  <!-- CONSENT -->
+  <section id="screen-consent" class="screen">
+    <p class="eyebrow">Music Workshop · Listening Study</p>
+    <h1>Beyond the Scale</h1>
+    <p class="subtitle">Short clips of Carnatic music, and how they make you feel.</p>
+
+    <p class="lede">You'll hear a few brief instrumental clips and rate each one. No musical knowledge needed — just how it feels to you. About 6 minutes.</p>
+    <p class="fine">Responses are anonymous and used only for a student research project.</p>
+
+    <button id="btn-start" class="btn-primary">Begin</button>
+    <p class="fine consent-line">Beginning the survey indicates you are 18 or older and agree to take part.</p>
+  </section>
+
+  <!-- BACKGROUND (single item) -->
+  <section id="screen-demo" class="screen hidden">
+    <p class="q-big">How familiar are you with Carnatic music?</p>
+    <div class="choice-stack" id="training-choices">
+      <button class="choice" data-value="1">I've never really listened to it</button>
+      <button class="choice" data-value="2">I hear it occasionally</button>
+      <button class="choice" data-value="3">I listen fairly often</button>
+      <button class="choice" data-value="4">I've had some training</button>
+      <button class="choice" data-value="5">I'm formally trained</button>
+    </div>
+    <p class="fine tap-hint">Tap one to continue.</p>
+  </section>
+
+  <!-- FAMILIARISATION -->
+  <section id="screen-fam" class="screen hidden">
+    <p class="eyebrow">Warm-up</p>
+    <p class="q-big">First, a plain tone to settle your ear.</p>
+    <div class="player" id="fam-player">
+      <button class="play-btn" id="fam-play" aria-label="Play"></button>
+      <div class="seek"><div class="seek-fill" id="fam-seek"></div></div>
+      <span class="time" id="fam-time">0:00</span>
+    </div>
+    <button id="btn-fam-next" class="btn-primary reveal" disabled>Continue</button>
+    <p class="fine tap-hint" id="fam-hint">Have a listen — Continue appears once you're a little way through.</p>
+  </section>
+
+  <!-- CLIP -->
+  <section id="screen-clip" class="screen hidden">
+    <div class="player" id="clip-player">
+      <button class="play-btn" id="clip-play" aria-label="Play"></button>
+      <div class="seek"><div class="seek-fill" id="clip-seek"></div></div>
+      <span class="time" id="clip-time">0:00</span>
+      <button class="replay-btn" id="clip-replay" aria-label="Replay from start" title="Replay">↺</button>
+    </div>
+
+    <div class="rating">
+      <p class="rate-q">How did it feel?</p>
+      <div class="sam" data-name="valence" aria-label="Pleasantness">
+        <span class="sam-end">Unpleasant</span>
+        <div class="dots">
+          <button class="dot" data-v="1"></button><button class="dot" data-v="2"></button><button class="dot" data-v="3"></button><button class="dot" data-v="4"></button><button class="dot" data-v="5"></button>
+        </div>
+        <span class="sam-end">Pleasant</span>
+      </div>
+
+      <div class="sam" data-name="arousal" aria-label="Energy">
+        <span class="sam-end">Calming</span>
+        <div class="dots">
+          <button class="dot" data-v="1"></button><button class="dot" data-v="2"></button><button class="dot" data-v="3"></button><button class="dot" data-v="4"></button><button class="dot" data-v="5"></button>
+        </div>
+        <span class="sam-end">Intense</span>
+      </div>
+
+      <input type="text" id="free-text" class="word-in" maxlength="30" placeholder="one word for the feeling (optional)" autocomplete="off">
+    </div>
+
+    <button id="btn-next-clip" class="btn-primary reveal" disabled>Next</button>
+  </section>
+
+  <!-- DONE -->
+  <section id="screen-done" class="screen hidden">
+    <p class="eyebrow">Done</p>
+    <h1>Thank you.</h1>
+    <p class="lede">That's everything. Your responses have been recorded.</p>
+    <p id="save-status" class="fine"></p>
+    <button id="btn-download-csv" class="btn-ghost">Download my responses</button>
+  </section>
+
+</main>
+
+<!-- Back/forward arrows to review or edit earlier answers -->
+<div id="bottom-nav" class="bottom-nav hidden">
+  <button id="nav-back" class="nav-arrow" aria-label="Back to previous question">‹</button>
+  <button id="nav-forward" class="nav-arrow" aria-label="Forward to next question">›</button>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
