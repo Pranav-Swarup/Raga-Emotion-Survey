@@ -24,3 +24,9 @@ create policy "anon can insert"
   on submissions for insert
   to anon
   with check (true);
+
+-- RLS policies alone don't grant table-level privileges. If your project has
+-- "Automatically expose new tables" turned off (Project Settings > Data API,
+-- the recommended setting), the anon role also needs this explicit grant or
+-- every insert fails with "permission denied for table submissions".
+grant insert on table submissions to anon;
