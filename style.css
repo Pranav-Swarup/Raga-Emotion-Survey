@@ -3,7 +3,7 @@
   --paper: #f7f3ec;
   --accent: #6b1f2a;
   --accent-soft: #f0e2e2;
-  --muted: #8a8078;
+  --muted: #5c5245;
   --line: #e4dccf;
   --dot: #d8cfc2;
 }
@@ -72,7 +72,7 @@ button { touch-action: manipulation; }
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 /* bottom nav arrows — greyed out, for reviewing/editing earlier answers */
@@ -126,7 +126,7 @@ h1 {
 
 .subtitle { font-style: italic; color: var(--muted); margin-bottom: 28px; }
 .lede { font-size: 1.15rem; margin-bottom: 18px; }
-.fine { font-size: 0.85rem; color: var(--muted); }
+.fine { font-size: 0.95rem; color: var(--muted); }
 .consent-line { margin-top: 18px; }
 
 /* buttons */
@@ -158,7 +158,7 @@ h1 {
   transform: none;
   pointer-events: auto;
 }
-.btn-primary.reveal.show:disabled { pointer-events: none; }
+.btn-primary.reveal.show:disabled { opacity: 0.35; pointer-events: none; }
 
 .btn-ghost {
   margin-top: 26px;
@@ -275,17 +275,34 @@ h1 {
 .replay-btn:hover { transform: rotate(-40deg); transition: transform 0.2s; }
 
 /* rating block */
-.rate-q { font-size: 1.05rem; color: var(--muted); margin-bottom: 20px; }
+.rate-q { font-size: 1.05rem; color: var(--muted); margin-bottom: 18px; }
+.rate-q .fine { display: inline; }
 
-.sam {
+/* GEMS-9 rows unlock only once the clip has been listened to enough */
+.listen-gate {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+  margin-bottom: 30px;
+}
+.listen-gate.hidden { display: none; }
+
+.rating.hidden { display: none; }
+
+.sam { margin-bottom: 22px; padding-left: 10px; border-left: 2px solid transparent; transition: border-color 0.3s ease; }
+.sam.pending { border-left-color: var(--accent); }
+.sam-label { font-size: 0.95rem; margin-bottom: 8px; }
+.sam-label strong { color: var(--ink); }
+
+.sam-scale {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 26px;
+  gap: 10px;
 }
 .sam-end {
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -327,6 +344,61 @@ h1 {
 .word-in::placeholder { color: var(--muted); font-style: italic; }
 .word-in:focus { outline: none; border-bottom-color: var(--accent); }
 
+/* demographics form */
+.field { margin-bottom: 22px; }
+.field.hidden { display: none; }
+.field-label { display: block; font-size: 0.98rem; color: var(--muted); margin-bottom: 8px; }
+.req { color: var(--accent); }
+
+.choice-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill {
+  background: #fff;
+  border: 1px solid var(--line);
+  font-family: inherit;
+  font-size: 0.92rem;
+  color: var(--ink);
+  padding: 9px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.pill:hover { border-color: var(--accent); }
+.pill.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* pre-clip notice (shown before clip 1, and between clips) */
+.notice-list {
+  list-style: none;
+  margin-bottom: 26px;
+}
+.notice-list li {
+  position: relative;
+  padding-left: 22px;
+  margin-bottom: 14px;
+  font-size: 1.02rem;
+}
+.notice-list li::before {
+  content: "•";
+  position: absolute;
+  left: 4px;
+  color: var(--accent);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+.notice-list.hidden { display: none; }
+.notice-justify {
+  font-weight: 700;
+  margin-bottom: 18px;
+}
+.notice-justify.hidden { display: none; }
+.notice-onesitting {
+  margin-bottom: 18px;
+}
+.notice-timer {
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 4px;
+}
+.notice-timer.hidden { display: none; }
+
 @media (max-width: 480px) {
   html, body { overflow-x: hidden; }
   #app { padding: 68px 18px calc(78px + env(safe-area-inset-bottom)); }
@@ -336,9 +408,11 @@ h1 {
   .player { padding: 13px 14px; gap: 10px; margin-bottom: 24px; }
   .play-btn { width: 46px; height: 46px; }
   .choice { padding: 13px 15px; font-size: 1rem; }
-  .sam { grid-template-columns: 1fr; gap: 8px; text-align: center; margin-bottom: 20px; }
+  .sam { padding-left: 8px; margin-bottom: 18px; }
+  .sam-scale { grid-template-columns: 1fr; gap: 6px; text-align: center; }
   .sam-end:last-child { text-align: center; }
   .dot { max-width: 30px; }
+  .pill { padding: 8px 14px; font-size: 0.88rem; }
   .btn-primary { width: 100%; text-align: center; align-self: stretch; padding: 14px 20px; }
   .btn-ghost { width: 100%; text-align: center; align-self: stretch; }
   .nav-arrow { width: 48px; height: 48px; font-size: 1.6rem; }

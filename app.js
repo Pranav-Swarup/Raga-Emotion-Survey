@@ -1,46 +1,37 @@
-// ---- Clips --------------------------------------------------------------
-// Placeholders. Replace `src` with real hosted audio once ragas are locked in.
-// `melakarta`, `raga`, `phrase` are stored as metadata for analysis, never shown.
-
-const CLIPS = [
-  { id: "clip1", src: "audio/placeholder_clip1.wav", melakarta: "kharaharapriya", raga: "ragaA", phrase: "p1" },
-  { id: "clip2", src: "audio/placeholder_clip2.wav", melakarta: "kharaharapriya", raga: "ragaB", phrase: "p1" },
-  { id: "clip3", src: "audio/placeholder_clip3.wav", melakarta: "kharaharapriya", raga: "ragaA", phrase: "p2" },
-  { id: "clip4", src: "audio/placeholder_clip4.wav", melakarta: "kharaharapriya", raga: "ragaB", phrase: "p2" },
-];
-
-const FAMILIARISATION_SRC = "audio/familiarisation.wav";
-const LISTEN_THRESHOLD = 0.75; // fraction of a clip that must play before Continue/Next appears
+// Content (CLIPS, FAMILIARISATION_SRC, LISTEN_THRESHOLD, GEMS9_ITEMS,
+// DEMOGRAPHICS_CONFIG) lives in survey-config.js. Backend keys live in config.js.
 
 // ---- State --------------------------------------------------------------
-// Steps: 0 = background question, 1 = familiarisation, 2..(1+N) = clip i-2.
+// Steps: 0 = familiarisation, 1..N = clip (step-1), N+1 = demographics.
 
 const state = {
   respondentId: crypto.randomUUID(),
-  demoAnswer: null,
   famListened: false,
-  clipOrder: shuffle([...CLIPS]),
+  clipOrder: [...CLIPS], // fixed order: Abheri, then Reethigowla — not randomised
   clipListened: CLIPS.map(() => false),
-  clipAnswers: CLIPS.map(() => ({})), // {valence, arousal, free_text} per clip, by presentation order
+  clipAnswers: CLIPS.map(() => ({ gems: {} })), // {gems: {key: 0-4}, free_text, timeSpentMs}
+  demographics: { training: null, listening_frequency: null, familiar: null, course_student: null, roll_number: null, name: null },
   responses: [],
   currentStep: -1,
   maxStep: -1,
 };
 
-const TOTAL_STEPS = 2 + CLIPS.length; // demo, fam, one per clip
+// The step indicator/progress bar only count familiarisation + clips — they
+// reach "full" once the respondent is on the last clip. Demographics is a
+// final, uncounted screen after that, with its own chrome hidden.
+const TOTAL_STEPS = CLIPS.length + 1;
+const DEMOGRAPHICS_STEP = CLIPS.length + 1;
+const THRESHOLD_PCT = Math.round(LISTEN_THRESHOLD * 100);
+const NOTICE_SECONDS = 15;
 
-function shuffle(a) {
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+function clipIndexForStep(step) {
+  return (step >= 1 && step <= CLIPS.length) ? step - 1 : null;
 }
 
 // ---- Progress bar + step indicator ----------------------------------------
 
 function setProgress(step) {
-  const pct = Math.min(100, Math.max(0, Math.round((step / TOTAL_STEPS) * 100)));
+  const pct = Math.min(100, Math.max(0, Math.round(((step + 1) / TOTAL_STEPS) * 100)));
   document.getElementById("progress-fill").style.width = pct + "%";
 }
 
@@ -87,22 +78,42 @@ function show(id) {
   window.scrollTo(0, 0);
 }
 
-// ---- Step router ------------------------------------------------------------
+// ---- Step router + per-clip time tracking ----------------------------------
+
+let stepEnteredAt = null;
+
+function recordTimeOnCurrentStep() {
+  if (stepEnteredAt == null) return;
+  const elapsed = Date.now() - stepEnteredAt;
+  stepEnteredAt = null;
+  const idx = clipIndexForStep(state.currentStep);
+  if (idx != null) {
+    const a = state.clipAnswers[idx];
+    a.timeSpentMs = (a.timeSpentMs || 0) + elapsed;
+  }
+}
 
 function goToStep(step, { validate = true } = {}) {
   if (validate && step > state.maxStep + 1) return;
+  recordTimeOnCurrentStep();
   state.currentStep = step;
   state.maxStep = Math.max(state.maxStep, step);
   renderStep(step);
 }
 
 function renderStep(step) {
+  stepEnteredAt = Date.now();
+  if (step === DEMOGRAPHICS_STEP) {
+    // Final, uncounted screen: no step pill, no progress movement, no nav arrows.
+    hideStepChrome();
+    renderDemographics();
+    return;
+  }
   updateStepIndicator(step);
   updateBottomNav(step);
   setProgress(step);
-  if (step === 0) renderDemo();
-  else if (step === 1) renderFam();
-  else renderClip(step - 2);
+  if (step === 0) renderFam();
+  else renderClip(clipIndexForStep(step));
 }
 
 // ---- Reusable audio player ------------------------------------------------
@@ -170,28 +181,17 @@ function setButtonRevealed(btn, revealed) {
 // ---- Consent --------------------------------------------------------------
 
 document.getElementById("btn-start").addEventListener("click", () => {
+  show("screen-fam-intro");
+});
+
+document.getElementById("btn-fam-intro-proceed").addEventListener("click", () => {
   goToStep(0);
 });
 
-// ---- Background (one tap advances) ----------------------------------------
-
-document.querySelectorAll("#training-choices .choice").forEach(btn => {
-  btn.addEventListener("click", () => {
-    state.demoAnswer = btn.dataset.value;
-    document.querySelectorAll("#training-choices .choice").forEach(b => b.classList.remove("selected"));
-    btn.classList.add("selected");
-    goToStep(1);
-  });
-});
-
-function renderDemo() {
-  show("screen-demo");
-  document.querySelectorAll("#training-choices .choice").forEach(b => {
-    b.classList.toggle("selected", b.dataset.value === state.demoAnswer);
-  });
-}
-
 // ---- Familiarisation ------------------------------------------------------
+
+document.getElementById("fam-hint").textContent =
+  `Continue button will appear once you've heard ${THRESHOLD_PCT}% of the clip.`;
 
 const famNext = document.getElementById("btn-fam-next");
 const famPlayer = makePlayer({
@@ -213,13 +213,68 @@ function renderFam() {
 
 famNext.addEventListener("click", () => {
   famPlayer.stop();
-  goToStep(2);
+  showPreClipNotice("5", () => goToStep(1));
 });
 
-// ---- Clips ----------------------------------------------------------------
+// ---- Clips ------------------------------------------------------------------
 
 const nextBtn = document.getElementById("btn-next-clip");
 const freeText = document.getElementById("free-text");
+const gemsContainer = document.getElementById("gems-items");
+const ratingLocked = document.getElementById("clip-rating-locked");
+const ratingBlock = document.getElementById("clip-rating");
+
+document.getElementById("clip-locked-msg").textContent =
+  `${THRESHOLD_PCT}% of the clip has to be heard before the ratings and Next button appear.`;
+
+// Build the nine GEMS-9 rows once, from config.
+GEMS9_ITEMS.forEach(item => {
+  const row = document.createElement("div");
+  row.className = "sam";
+  row.dataset.key = item.key;
+
+  const labelEl = document.createElement("p");
+  labelEl.className = "sam-label";
+  labelEl.innerHTML = `<strong>${item.label}</strong> — ${item.desc}`;
+  row.appendChild(labelEl);
+
+  const scale = document.createElement("div");
+  scale.className = "sam-scale";
+
+  const lo = document.createElement("span");
+  lo.className = "sam-end";
+  lo.textContent = "Not at all";
+  scale.appendChild(lo);
+
+  const dots = document.createElement("div");
+  dots.className = "dots";
+  for (let v = 0; v <= 4; v++) {
+    const dot = document.createElement("button");
+    dot.type = "button";
+    dot.className = "dot";
+    dot.dataset.v = String(v);
+    dot.setAttribute("aria-label", `${item.label}: ${v}`);
+    dot.addEventListener("click", () => {
+      const idx = clipIndexForStep(state.currentStep);
+      if (idx == null) return;
+      dots.querySelectorAll(".dot").forEach(d => d.classList.remove("selected"));
+      dot.classList.add("selected");
+      state.clipAnswers[idx].gems[item.key] = v;
+      row.classList.remove("pending");
+      updateClipNextButton(idx);
+    });
+    dots.appendChild(dot);
+  }
+  scale.appendChild(dots);
+
+  const hi = document.createElement("span");
+  hi.className = "sam-end";
+  hi.textContent = "Extremely";
+  scale.appendChild(hi);
+
+  row.appendChild(scale);
+  gemsContainer.appendChild(row);
+});
 
 const clipPlayer = makePlayer({
   playBtn: document.getElementById("clip-play"),
@@ -227,85 +282,224 @@ const clipPlayer = makePlayer({
   timeEl: document.getElementById("clip-time"),
   replayBtn: document.getElementById("clip-replay"),
   onThreshold: () => {
-    const idx = state.currentStep - 2;
+    const idx = clipIndexForStep(state.currentStep);
+    if (idx == null) return;
     state.clipListened[idx] = true;
+    unlockRating();
     updateClipNextButton(idx);
   },
 });
 
-function selectDot(name, value) {
-  const sam = document.querySelector(`.sam[data-name="${name}"]`);
-  sam.querySelectorAll(".dot").forEach(d => d.classList.toggle("selected", d.dataset.v === String(value)));
+function unlockRating() {
+  ratingLocked.classList.add("hidden");
+  ratingBlock.classList.remove("hidden");
+}
+function lockRating() {
+  ratingLocked.classList.remove("hidden");
+  ratingBlock.classList.add("hidden");
 }
 
-document.querySelectorAll(".sam").forEach(sam => {
-  const name = sam.dataset.name;
-  sam.querySelectorAll(".dot").forEach(dot => {
-    dot.addEventListener("click", () => {
-      const idx = state.currentStep - 2;
-      sam.querySelectorAll(".dot").forEach(d => d.classList.remove("selected"));
-      dot.classList.add("selected");
-      state.clipAnswers[idx][name] = dot.dataset.v;
-      updateClipNextButton(idx);
-    });
-  });
-});
 freeText.addEventListener("input", () => {
-  const idx = state.currentStep - 2;
+  const idx = clipIndexForStep(state.currentStep);
+  if (idx == null) return;
   state.clipAnswers[idx].free_text = freeText.value;
 });
 
+function allGemsAnswered(idx) {
+  const gems = state.clipAnswers[idx].gems;
+  return GEMS9_ITEMS.every(item => gems[item.key] !== undefined);
+}
+
 function updateClipNextButton(idx) {
   const revealed = !!state.clipListened[idx];
-  const answers = state.clipAnswers[idx];
   nextBtn.classList.toggle("show", revealed);
-  nextBtn.disabled = !(revealed && answers.valence && answers.arousal);
+  nextBtn.disabled = !(revealed && allGemsAnswered(idx));
+}
+
+let preloadAudio = null;
+function preloadNextClip(afterIdx) {
+  const next = state.clipOrder[afterIdx + 1];
+  if (!next) { preloadAudio = null; return; }
+  preloadAudio = new Audio();
+  preloadAudio.preload = "auto";
+  preloadAudio.src = next.src;
 }
 
 function renderClip(idx) {
   const clip = state.clipOrder[idx];
   clipPlayer.load(clip.src);
+  preloadNextClip(idx);
+
   const saved = state.clipAnswers[idx];
-  document.querySelectorAll(".sam .dot").forEach(d => d.classList.remove("selected"));
-  if (saved.valence) selectDot("valence", saved.valence);
-  if (saved.arousal) selectDot("arousal", saved.arousal);
+  gemsContainer.querySelectorAll(".sam").forEach(row => {
+    const key = row.dataset.key;
+    row.classList.remove("pending");
+    row.querySelectorAll(".dot").forEach(d => {
+      d.classList.toggle("selected", saved.gems[key] !== undefined && String(saved.gems[key]) === d.dataset.v);
+    });
+  });
   freeText.value = saved.free_text || "";
+
+  if (state.clipListened[idx]) unlockRating(); else lockRating();
   updateClipNextButton(idx);
   show("screen-clip");
 }
 
 nextBtn.addEventListener("click", () => {
   clipPlayer.stop();
-  const idx = state.currentStep - 2;
+  const idx = clipIndexForStep(state.currentStep);
+  if (idx == null) return;
+  // Gently flag any row still unanswered (shouldn't normally reach here, button is disabled until complete).
+  let allDone = true;
+  gemsContainer.querySelectorAll(".sam").forEach(row => {
+    const answered = state.clipAnswers[idx].gems[row.dataset.key] !== undefined;
+    row.classList.toggle("pending", !answered);
+    if (!answered) allDone = false;
+  });
+  if (!allDone) return;
+
   if (idx < state.clipOrder.length - 1) {
-    goToStep(state.currentStep + 1);
+    const nextStep = state.currentStep + 1;
+    showPreClipNotice("2", () => goToStep(nextStep), { showInstructions: false });
   } else {
-    finish();
+    goToStep(DEMOGRAPHICS_STEP);
   }
+});
+
+// ---- Pre-clip notice (shown before clip 1, and between clips; not a navigable step) --
+
+let noticeTimer = null;
+const noticeMinutesEl = document.getElementById("notice-minutes");
+const noticeCountdownEl = document.getElementById("notice-countdown");
+const noticeProceedBtn = document.getElementById("btn-notice-proceed");
+const noticeListEl = document.getElementById("notice-list");
+const noticeJustifyEl = document.getElementById("notice-justify");
+const noticeTimerLineEl = document.getElementById("notice-timer-line");
+
+function showPreClipNotice(minutesLabel, onProceed, { showInstructions = true } = {}) {
+  recordTimeOnCurrentStep();
+  hideStepChrome();
+  noticeListEl.classList.toggle("hidden", !showInstructions);
+  noticeJustifyEl.classList.toggle("hidden", showInstructions);
+  noticeMinutesEl.textContent = minutesLabel;
+  let remaining = NOTICE_SECONDS;
+  noticeCountdownEl.textContent = remaining;
+  noticeTimerLineEl.classList.remove("hidden");
+  setButtonRevealed(noticeProceedBtn, false);
+  show("screen-notice");
+
+  clearInterval(noticeTimer);
+  noticeTimer = setInterval(() => {
+    remaining -= 1;
+    if (remaining <= 0) {
+      clearInterval(noticeTimer);
+      noticeTimerLineEl.classList.add("hidden");
+      setButtonRevealed(noticeProceedBtn, true);
+    } else {
+      noticeCountdownEl.textContent = remaining;
+    }
+  }, 1000);
+
+  noticeProceedBtn.onclick = () => {
+    clearInterval(noticeTimer);
+    onProceed();
+  };
+}
+
+// ---- Demographics -----------------------------------------------------------
+
+const btnFinish = document.getElementById("btn-finish");
+
+function buildChoiceRow(container, options, key, { onSelect } = {}) {
+  container.innerHTML = "";
+  options.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "pill";
+    btn.textContent = opt;
+    btn.dataset.value = opt;
+    btn.addEventListener("click", () => {
+      container.querySelectorAll(".pill").forEach(p => p.classList.remove("selected"));
+      btn.classList.add("selected");
+      state.demographics[key] = opt;
+      if (onSelect) onSelect(opt);
+      updateFinishButton();
+    });
+    container.appendChild(btn);
+  });
+}
+
+const trainingRow = document.getElementById("demo-training");
+const frequencyRow = document.getElementById("demo-frequency");
+const familiarRow = document.getElementById("demo-familiar");
+const courseRow = document.getElementById("demo-course");
+const yearsField = document.getElementById("demo-years-field");
+const courseDetailsField = document.getElementById("demo-course-details");
+const ageInput = document.getElementById("demo-age");
+const yearsInput = document.getElementById("demo-years");
+const rollInput = document.getElementById("demo-roll");
+const nameInput = document.getElementById("demo-name");
+
+buildChoiceRow(trainingRow, DEMOGRAPHICS_CONFIG.trainingOptions, "training", {
+  onSelect: (val) => yearsField.classList.toggle("hidden", val === "None"),
+});
+buildChoiceRow(frequencyRow, DEMOGRAPHICS_CONFIG.listeningFrequencyOptions, "listening_frequency");
+buildChoiceRow(familiarRow, DEMOGRAPHICS_CONFIG.familiarityOptions, "familiar");
+buildChoiceRow(courseRow, ["Yes", "No"], "course_student", {
+  onSelect: (val) => courseDetailsField.classList.toggle("hidden", val !== "Yes"),
+});
+
+ageInput.addEventListener("input", () => { state.demographics.age = ageInput.value; });
+yearsInput.addEventListener("input", () => { state.demographics.years_of_training = yearsInput.value; });
+rollInput.addEventListener("input", () => { state.demographics.roll_number = rollInput.value; updateFinishButton(); });
+nameInput.addEventListener("input", () => { state.demographics.name = nameInput.value; updateFinishButton(); });
+
+function updateFinishButton() {
+  const d = state.demographics;
+  const courseOk = d.course_student !== "Yes" || (d.roll_number && d.roll_number.trim() && d.name && d.name.trim());
+  btnFinish.disabled = !(d.training && courseOk);
+}
+
+function renderDemographics() {
+  show("screen-demographics");
+  updateFinishButton();
+}
+
+btnFinish.addEventListener("click", () => {
+  finish();
 });
 
 // ---- Done -----------------------------------------------------------------
 
 function buildResponses() {
+  const d = state.demographics;
   return state.clipOrder.map((clip, idx) => {
-    const r = state.clipAnswers[idx] || {};
-    return {
+    const a = state.clipAnswers[idx] || { gems: {} };
+    const row = {
       respondent_id: state.respondentId,
-      training_background: state.demoAnswer,
       clip_id: clip.id,
       melakarta: clip.melakarta,
       raga: clip.raga,
-      phrase: clip.phrase,
       presentation_order: idx + 1,
-      valence: r.valence,
-      arousal: r.arousal,
-      free_text: (r.free_text || "").trim(),
+      free_text: (a.free_text || "").trim(),
+      time_spent_ms: a.timeSpentMs || 0,
+      age: d.age || null,
+      training: d.training,
+      years_of_training: d.years_of_training || null,
+      listening_frequency: d.listening_frequency,
+      familiar: d.familiar,
+      course_student: d.course_student,
+      roll_number: d.course_student === "Yes" ? (d.roll_number || "").trim() : null,
+      name: d.course_student === "Yes" ? (d.name || "").trim() : null,
       created_at: new Date().toISOString(),
     };
+    GEMS9_ITEMS.forEach(item => { row[item.key] = a.gems[item.key]; });
+    return row;
   });
 }
 
 async function finish() {
+  recordTimeOnCurrentStep();
   hideStepChrome();
   setProgress(TOTAL_STEPS);
   state.responses = buildResponses();

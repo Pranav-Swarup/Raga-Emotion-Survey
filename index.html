@@ -18,43 +18,37 @@
 
 <main id="app">
 
-  <!-- CONSENT -->
+  <!-- DISCLAIMER -->
   <section id="screen-consent" class="screen">
     <p class="eyebrow">Music Workshop · Listening Study</p>
     <h1>Beyond the Scale</h1>
-    <p class="subtitle">Short clips of Carnatic music, and how they make you feel.</p>
 
-    <p class="lede">You'll hear a few brief instrumental clips and rate each one. No musical knowledge needed — just how it feels to you. About 6 minutes.</p>
-    <p class="fine">Responses are anonymous and used only for a student research project.</p>
+    <p class="lede">This study measures your emotional response to music. Please make sure you're paying attention throughout :) Your responses will be published as a research finding.</p>
+    <p class="lede">Do not play it in the background or fill this survey just to get through. 🙏</p>
+    <p class="fine">Responses are anonymous.</p>
 
     <button id="btn-start" class="btn-primary">Begin</button>
-    <p class="fine consent-line">Beginning the survey indicates you are 18 or older and agree to take part.</p>
   </section>
 
-  <!-- BACKGROUND (single item) -->
-  <section id="screen-demo" class="screen hidden">
-    <p class="q-big">How familiar are you with Carnatic music?</p>
-    <div class="choice-stack" id="training-choices">
-      <button class="choice" data-value="1">I've never really listened to it</button>
-      <button class="choice" data-value="2">I hear it occasionally</button>
-      <button class="choice" data-value="3">I listen fairly often</button>
-      <button class="choice" data-value="4">I've had some training</button>
-      <button class="choice" data-value="5">I'm formally trained</button>
-    </div>
-    <p class="fine tap-hint">Tap one to continue.</p>
+  <!-- FAMILIARISATION INTRO (explains purpose, no audio yet) -->
+  <section id="screen-fam-intro" class="screen hidden">
+    <p class="eyebrow">Before we start</p>
+    <p class="q-big">This first clip is just to get you accustomed to the instrument's timbre.</p>
+    <p class="lede">Helps remove timbre as a source of bias. </p>
+    <button id="btn-fam-intro-proceed" class="btn-primary">Proceed</button>
   </section>
 
   <!-- FAMILIARISATION -->
   <section id="screen-fam" class="screen hidden">
     <p class="eyebrow">Warm-up</p>
-    <p class="q-big">First, a plain tone to settle your ear.</p>
+    <p class="q-big">Listen to this short clip to get used to the sound.</p>
     <div class="player" id="fam-player">
       <button class="play-btn" id="fam-play" aria-label="Play"></button>
       <div class="seek"><div class="seek-fill" id="fam-seek"></div></div>
       <span class="time" id="fam-time">0:00</span>
     </div>
     <button id="btn-fam-next" class="btn-primary reveal" disabled>Continue</button>
-    <p class="fine tap-hint" id="fam-hint">Have a listen — Continue appears once you're a little way through.</p>
+    <p class="fine tap-hint" id="fam-hint"></p>
   </section>
 
   <!-- CLIP -->
@@ -66,28 +60,79 @@
       <button class="replay-btn" id="clip-replay" aria-label="Replay from start" title="Replay">↺</button>
     </div>
 
-    <div class="rating">
-      <p class="rate-q">How did it feel?</p>
-      <div class="sam" data-name="valence" aria-label="Pleasantness">
-        <span class="sam-end">Unpleasant</span>
-        <div class="dots">
-          <button class="dot" data-v="1"></button><button class="dot" data-v="2"></button><button class="dot" data-v="3"></button><button class="dot" data-v="4"></button><button class="dot" data-v="5"></button>
-        </div>
-        <span class="sam-end">Pleasant</span>
-      </div>
+    <div id="clip-rating-locked" class="listen-gate">
+      <p class="fine" id="clip-locked-msg"></p>
+    </div>
 
-      <div class="sam" data-name="arousal" aria-label="Energy">
-        <span class="sam-end">Calming</span>
-        <div class="dots">
-          <button class="dot" data-v="1"></button><button class="dot" data-v="2"></button><button class="dot" data-v="3"></button><button class="dot" data-v="4"></button><button class="dot" data-v="5"></button>
-        </div>
-        <span class="sam-end">Intense</span>
-      </div>
-
+    <div class="rating hidden" id="clip-rating">
+      <p class="rate-q">How did it feel? <span class="fine">(0 = not at all, 4 = extremely)</span></p>
+      <div id="gems-items"><!-- nine GEMS-9 rows, rendered from survey-config.js --></div>
       <input type="text" id="free-text" class="word-in" maxlength="30" placeholder="one word for the feeling (optional)" autocomplete="off">
     </div>
 
     <button id="btn-next-clip" class="btn-primary reveal" disabled>Next</button>
+  </section>
+
+  <!-- PRE-CLIP NOTICE (shown before clip 1, and between clips; not a navigable step) -->
+  <section id="screen-notice" class="screen hidden">
+    <p class="eyebrow">Before you listen</p>
+    <ul class="notice-list" id="notice-list">
+      <li>Wear headphones, or play this somewhere quiet.</li>
+      <li>Don't pause in between. Only continue if you have atleast <strong id="notice-minutes">5</strong> minutes free right now.</li>
+      <li>The clips can be replayed if you need to.</li>
+      <li>Your emotional response is being measured. If it helps, close your eyes and pay attention to what you feel.</li>
+    </ul>
+    <p class="fine notice-justify" id="notice-justify">This short pause helps clear your mind so the last clip doesn't affect how you rate this one.</p>
+    <p class="fine notice-onesitting">Please complete this survey in one sitting.</p>
+    <p class="fine notice-timer" id="notice-timer-line">You can proceed in <span id="notice-countdown">15</span>s</p>
+    <button id="btn-notice-proceed" class="btn-primary reveal" disabled>Proceed</button>
+  </section>
+
+  <!-- DEMOGRAPHICS (final screen, one page, all optional except training) -->
+  <section id="screen-demographics" class="screen hidden">
+    <p class="eyebrow">Almost done</p>
+    <p class="q-big">A few quick details</p>
+    <p class="fine tap-hint">Helps with analysis.</p>
+
+    <div class="field">
+      <p class="field-label">Are you part of the Music Workshop course at IIIT Hyderabad?</p>
+      <div class="choice-row" id="demo-course"></div>
+    </div>
+
+    <div class="field hidden" id="demo-course-details">
+      <label class="field-label" for="demo-roll">Roll number <span class="req">*</span></label>
+      <input type="text" id="demo-roll" class="word-in" placeholder="e.g. 2025121011" autocomplete="off">
+
+      <label class="field-label" for="demo-name" style="margin-top: 16px;">Name <span class="req">*</span></label>
+      <input type="text" id="demo-name" class="word-in" placeholder="Your full name" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label class="field-label" for="demo-age">Age</label>
+      <input type="number" id="demo-age" class="word-in" min="1" max="120" placeholder="e.g. 22" inputmode="numeric">
+    </div>
+
+    <div class="field">
+      <p class="field-label">Prior Carnatic / Indian classical training? <span class="req">*</span></p>
+      <div class="choice-row" id="demo-training"></div>
+    </div>
+
+    <div class="field hidden" id="demo-years-field">
+      <label class="field-label" for="demo-years">Years of training</label>
+      <input type="number" id="demo-years" class="word-in" min="0" max="80" placeholder="e.g. 3" inputmode="numeric">
+    </div>
+
+    <div class="field">
+      <p class="field-label">How often do you listen to Indian classical music?</p>
+      <div class="choice-row" id="demo-frequency"></div>
+    </div>
+
+    <div class="field">
+      <p class="field-label">Did any clip sound familiar to you?</p>
+      <div class="choice-row" id="demo-familiar"></div>
+    </div>
+
+    <button id="btn-finish" class="btn-primary" disabled>Finish</button>
   </section>
 
   <!-- DONE -->
@@ -108,6 +153,7 @@
 </div>
 
 <script src="config.js"></script>
+<script src="survey-config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
