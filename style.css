@@ -229,7 +229,8 @@ h1 {
   position: relative;
   transition: transform 0.12s;
 }
-.play-btn:hover { transform: scale(1.05); }
+.play-btn:hover:not(:disabled) { transform: scale(1.05); }
+.play-btn:disabled { opacity: 0.4; cursor: default; }
 /* play triangle */
 .play-btn::before {
   content: "";

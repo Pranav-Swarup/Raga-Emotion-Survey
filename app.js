@@ -29,6 +29,22 @@ const THRESHOLD_PCT = Math.round(LISTEN_THRESHOLD * 100);
 const DEV_MODE = new URLSearchParams(location.search).has("dev");
 const NOTICE_SECONDS = 15;
 
+// Clips are 30-50MB. Streaming with preload="metadata" only guarantees enough
+// buffer to start, which can stall mid-playback on a bad connection. Instead
+// every clip's audio is fully fetched into memory as a Blob before it's
+// playable at all — once Play is enabled, there's no network dependency left.
+// Shared across players so a clip pre-fetched during the previous rating
+// isn't downloaded twice.
+const audioBlobCache = new Map(); // src -> objectURL
+function fetchAudioBlobUrl(src) {
+  if (audioBlobCache.has(src)) return audioBlobCache.get(src);
+  const promise = fetch(src)
+    .then(res => res.blob())
+    .then(blob => URL.createObjectURL(blob));
+  audioBlobCache.set(src, promise);
+  return promise;
+}
+
 function clipIndexForStep(step) {
   return (step >= 1 && step <= CLIPS.length) ? step - 1 : null;
 }
@@ -132,10 +148,10 @@ function renderStep(step) {
 // ---- Reusable audio player ------------------------------------------------
 
 function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, loadingEl, onEnded, onThreshold, thresholdPct = LISTEN_THRESHOLD }) {
-  const audio = new Audio();
-  audio.preload = "metadata";
+  const audio = new Audio(); // .src is only ever set to a fully-downloaded blob URL, see load() below
   let thresholdFired = false;
   let seekLocked = true; // no scrubbing ahead on the first listen — that would bypass the listen gate
+  let loadGeneration = 0; // guards against a stale fetch resolving after a newer load() call
 
   function fmt(s) {
     if (!isFinite(s)) return "0:00";
@@ -199,6 +215,7 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, lo
     if (analyser && analyser.context.state === "suspended") analyser.context.resume();
     cancelAnimationFrame(visRafId);
     drawVisualizer();
+    registerMediaSessionSeekGuards();
   });
   audio.addEventListener("pause", () => {
     playBtn.classList.remove("playing");
@@ -227,6 +244,33 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, lo
     if (onEnded) onEnded();
   });
 
+  // OS-level media controls (Android notification/lock screen, etc.) can
+  // seek an <audio> element directly via the Media Session API, completely
+  // bypassing our own seek bar and its lock — guard those the same way.
+  // Re-registered on every play() so whichever player is actually playing
+  // owns these global handlers (navigator.mediaSession is page-wide, not
+  // per-element).
+  function registerMediaSessionSeekGuards() {
+    if (!("mediaSession" in navigator)) return;
+    const guard = (fn) => (details) => {
+      if (seekLocked && !DEV_MODE) return;
+      fn(details);
+    };
+    const setHandler = (action, fn) => {
+      try { navigator.mediaSession.setActionHandler(action, fn); }
+      catch (e) { /* action unsupported in this browser — ignore */ }
+    };
+    setHandler("seekto", guard((d) => {
+      if (d.seekTime != null) audio.currentTime = d.seekTime;
+    }));
+    setHandler("seekforward", guard(() => {
+      audio.currentTime = Math.min(audio.duration || audio.currentTime, audio.currentTime + 10);
+    }));
+    setHandler("seekbackward", guard(() => {
+      audio.currentTime = Math.max(0, audio.currentTime - 10);
+    }));
+  }
+
   // click-to-seek — locked until the first-listen threshold is reached
   seekFill.parentElement.addEventListener("click", (e) => {
     if (seekLocked && !DEV_MODE) return;
@@ -243,14 +287,23 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, lo
   return {
     load(src) {
       audio.pause();
-      audio.src = src;
+      audio.removeAttribute("src");
       audio.currentTime = 0;
       thresholdFired = false;
       seekLocked = true;
       seekFill.parentElement.classList.add("seek-locked");
       seekFill.style.width = "0%";
       timeEl.textContent = "0:00";
-      if (loadingEl) loadingEl.classList.add("hidden");
+
+      const myGeneration = ++loadGeneration;
+      playBtn.disabled = true;
+      if (loadingEl) loadingEl.classList.remove("hidden");
+      fetchAudioBlobUrl(src).then((blobUrl) => {
+        if (myGeneration !== loadGeneration) return; // superseded by a newer load() call
+        audio.src = blobUrl;
+        playBtn.disabled = false;
+        if (loadingEl) loadingEl.classList.add("hidden");
+      });
     },
     unlockSeek() {
       seekLocked = false;
@@ -300,6 +353,10 @@ function renderFam() {
   famPlayer.load(FAMILIARISATION_SRC);
   if (state.famListened) famPlayer.unlockSeek();
   setButtonRevealed(famNext, state.famListened);
+  // Start clip 1's full download now — during the familiarisation listen and
+  // the notice screen after it — so it's likely already ready by the time
+  // the respondent actually reaches it.
+  fetchAudioBlobUrl(state.clipOrder[0].src);
 }
 
 famNext.addEventListener("click", () => {
@@ -428,13 +485,10 @@ function updateClipNextButton(idx) {
   nextBtn.disabled = !(revealed && allGemsAnswered(idx) && descriptionAnswered(idx));
 }
 
-let preloadAudio = null;
 function preloadNextClip(afterIdx) {
   const next = state.clipOrder[afterIdx + 1];
-  if (!next) { preloadAudio = null; return; }
-  preloadAudio = new Audio();
-  preloadAudio.preload = "auto";
-  preloadAudio.src = next.src;
+  if (!next) return;
+  fetchAudioBlobUrl(next.src); // warms audioBlobCache; renderClip() awaits the same promise later
 }
 
 function renderClip(idx) {
