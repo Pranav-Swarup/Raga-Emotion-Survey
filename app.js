@@ -177,6 +177,11 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, on
     }
     visRafId = requestAnimationFrame(drawVisualizer);
   }
+  function flattenVisualizer() {
+    if (!visualizerCanvas) return;
+    const canvasCtx = visualizerCanvas.getContext("2d");
+    canvasCtx.clearRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
+  }
   function sizeVisualizerCanvas() {
     if (!visualizerCanvas) return;
     const dpr = window.devicePixelRatio || 1;
@@ -211,6 +216,7 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, on
   audio.addEventListener("ended", () => {
     playBtn.classList.remove("playing");
     cancelAnimationFrame(visRafId);
+    flattenVisualizer();
     if (onEnded) onEnded();
   });
 
@@ -329,6 +335,7 @@ GEMS9_ITEMS.forEach(item => {
     dot.type = "button";
     dot.className = "dot";
     dot.dataset.v = String(v);
+    dot.textContent = String(v);
     dot.setAttribute("aria-label", `${item.label}: ${v}`);
     dot.addEventListener("click", () => {
       const idx = clipIndexForStep(state.currentStep);
@@ -372,6 +379,10 @@ function unlockRating() {
   ratingLocked.classList.add("hidden");
   ratingBlock.classList.remove("hidden");
   autoResizeTextarea(freeText); // element is only visible now — scrollHeight would read 0 before this
+  // Some mobile browsers don't immediately recognise the page just got much
+  // taller from this reveal, and leave scrolling stuck until something forces
+  // a layout recalculation.
+  void document.body.offsetHeight;
 }
 function lockRating() {
   ratingLocked.classList.remove("hidden");
@@ -402,7 +413,10 @@ function descriptionAnswered(idx) {
 }
 
 function updateClipNextButton(idx) {
-  const revealed = !!state.clipListened[idx];
+  // TEMP (debug): `revealed` requirement disabled along with the listen-lock
+  // above. RE-ENABLE both together before final push:
+  // const revealed = !!state.clipListened[idx];
+  const revealed = true;
   nextBtn.classList.toggle("show", revealed);
   nextBtn.disabled = !(revealed && allGemsAnswered(idx) && descriptionAnswered(idx));
 }
@@ -434,7 +448,10 @@ function renderClip(idx) {
   freeText.classList.remove("pending");
 
   show("screen-clip");
-  if (state.clipListened[idx]) unlockRating(); else lockRating();
+  // TEMP (debug): listen-lock disabled for testing the rating UI without
+  // waiting through full playback each time. RE-ENABLE before final push:
+  // if (state.clipListened[idx]) unlockRating(); else lockRating();
+  unlockRating();
   updateClipNextButton(idx);
 }
 

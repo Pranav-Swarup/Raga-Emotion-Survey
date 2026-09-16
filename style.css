@@ -20,7 +20,6 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   -webkit-tap-highlight-color: transparent;
-  overscroll-behavior-y: none;
 }
 
 button { touch-action: manipulation; }
@@ -320,21 +319,32 @@ h1 {
   display: flex;
   justify-content: space-between;
   gap: 6px;
+  min-width: 0;
 }
 .dot {
   flex: 1;
+  min-width: 0;
   aspect-ratio: 1;
   max-width: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 50%;
   border: 2px solid var(--dot);
   background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
   cursor: pointer;
-  transition: transform 0.1s, border-color 0.15s, background 0.15s;
+  transition: transform 0.1s, border-color 0.15s, background 0.15s, color 0.15s;
 }
 .dot:hover { border-color: var(--accent); }
 .dot.selected {
   background: var(--accent);
   border-color: var(--accent);
+  color: #fff;
   transform: scale(1.12);
 }
 
@@ -468,6 +478,10 @@ h1 {
 @media (max-width: 340px) {
   .step-indicator { font-size: 0.75rem; padding: 2px 8px; }
   h1 { font-size: 1.55rem; }
+  /* not enough width for five dots in a row without crowding/wrapping —
+     stack the scale vertically instead: label, then 0-4 top to bottom, then label */
+  .dots { flex-direction: column; align-items: center; gap: 8px; }
+  .dot { width: 34px; max-width: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
