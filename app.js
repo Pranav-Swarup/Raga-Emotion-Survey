@@ -130,6 +130,7 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, onEnded, onThreshold
   const audio = new Audio();
   audio.preload = "metadata";
   let thresholdFired = false;
+  let seekLocked = true; // no scrubbing ahead on the first listen — that would bypass the listen gate
 
   function fmt(s) {
     if (!isFinite(s)) return "0:00";
@@ -156,8 +157,9 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, onEnded, onThreshold
     if (onEnded) onEnded();
   });
 
-  // click-to-seek
+  // click-to-seek — locked until the first-listen threshold is reached
   seekFill.parentElement.addEventListener("click", (e) => {
+    if (seekLocked) return;
     const r = seekFill.parentElement.getBoundingClientRect();
     const ratio = (e.clientX - r.left) / r.width;
     if (audio.duration) audio.currentTime = ratio * audio.duration;
@@ -174,8 +176,14 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, onEnded, onThreshold
       audio.src = src;
       audio.currentTime = 0;
       thresholdFired = false;
+      seekLocked = true;
+      seekFill.parentElement.classList.add("seek-locked");
       seekFill.style.width = "0%";
       timeEl.textContent = "0:00";
+    },
+    unlockSeek() {
+      seekLocked = false;
+      seekFill.parentElement.classList.remove("seek-locked");
     },
     stop() { audio.pause(); },
   };
@@ -191,9 +199,6 @@ function setButtonRevealed(btn, revealed) {
 document.getElementById("btn-start").addEventListener("click", () => {
   show("screen-fam-intro");
 });
-
-document.getElementById("fam-intro-lede").textContent =
-  `${FAMILIARISATION_RAGA} is also a janya raga of ${FAMILIARISATION_MELAKARTA[0].toUpperCase()}${FAMILIARISATION_MELAKARTA.slice(1)} — the same melakarta as the clips you'll rate — so hearing it first helps neutralise both timbre and scale as sources of bias. The order the two rated clips play in is also randomised for you, to clear out whatever bias is left.`;
 
 document.getElementById("btn-fam-intro-proceed").addEventListener("click", () => {
   goToStep(0);
@@ -212,6 +217,7 @@ const famPlayer = makePlayer({
   replayBtn: null,
   onThreshold: () => {
     state.famListened = true;
+    famPlayer.unlockSeek();
     setButtonRevealed(famNext, true);
   },
 });
@@ -219,12 +225,13 @@ const famPlayer = makePlayer({
 function renderFam() {
   show("screen-fam");
   famPlayer.load(FAMILIARISATION_SRC);
+  if (state.famListened) famPlayer.unlockSeek();
   setButtonRevealed(famNext, state.famListened);
 }
 
 famNext.addEventListener("click", () => {
   famPlayer.stop();
-  showPreClipNotice("5", () => goToStep(1));
+  showPreClipNotice("5", () => goToStep(1), { seconds: 10 });
 });
 
 // ---- Clips ------------------------------------------------------------------
@@ -246,7 +253,7 @@ GEMS9_ITEMS.forEach(item => {
 
   const labelEl = document.createElement("p");
   labelEl.className = "sam-label";
-  labelEl.innerHTML = `<strong>${item.label}</strong> — ${item.desc}`;
+  labelEl.innerHTML = `<strong>${item.label}</strong> ${item.desc}`;
   row.appendChild(labelEl);
 
   const scale = document.createElement("div");
@@ -296,6 +303,7 @@ const clipPlayer = makePlayer({
     const idx = clipIndexForStep(state.currentStep);
     if (idx == null) return;
     state.clipListened[idx] = true;
+    clipPlayer.unlockSeek();
     unlockRating();
     updateClipNextButton(idx);
   },
@@ -304,16 +312,25 @@ const clipPlayer = makePlayer({
 function unlockRating() {
   ratingLocked.classList.add("hidden");
   ratingBlock.classList.remove("hidden");
+  autoResizeTextarea(freeText); // element is only visible now — scrollHeight would read 0 before this
 }
 function lockRating() {
   ratingLocked.classList.remove("hidden");
   ratingBlock.classList.add("hidden");
 }
 
+function autoResizeTextarea(el) {
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+
 freeText.addEventListener("input", () => {
+  autoResizeTextarea(freeText);
   const idx = clipIndexForStep(state.currentStep);
   if (idx == null) return;
   state.clipAnswers[idx].free_text = freeText.value;
+  freeText.classList.remove("pending");
+  updateClipNextButton(idx);
 });
 
 function allGemsAnswered(idx) {
@@ -321,10 +338,14 @@ function allGemsAnswered(idx) {
   return GEMS9_ITEMS.every(item => gems[item.key] !== undefined);
 }
 
+function descriptionAnswered(idx) {
+  return !!(state.clipAnswers[idx].free_text || "").trim();
+}
+
 function updateClipNextButton(idx) {
   const revealed = !!state.clipListened[idx];
   nextBtn.classList.toggle("show", revealed);
-  nextBtn.disabled = !(revealed && allGemsAnswered(idx));
+  nextBtn.disabled = !(revealed && allGemsAnswered(idx) && descriptionAnswered(idx));
 }
 
 let preloadAudio = null;
@@ -339,6 +360,7 @@ function preloadNextClip(afterIdx) {
 function renderClip(idx) {
   const clip = state.clipOrder[idx];
   clipPlayer.load(clip.src);
+  if (state.clipListened[idx]) clipPlayer.unlockSeek();
   preloadNextClip(idx);
 
   const saved = state.clipAnswers[idx];
@@ -350,23 +372,28 @@ function renderClip(idx) {
     });
   });
   freeText.value = saved.free_text || "";
+  freeText.classList.remove("pending");
 
+  show("screen-clip");
   if (state.clipListened[idx]) unlockRating(); else lockRating();
   updateClipNextButton(idx);
-  show("screen-clip");
 }
 
 nextBtn.addEventListener("click", () => {
   clipPlayer.stop();
   const idx = clipIndexForStep(state.currentStep);
   if (idx == null) return;
-  // Gently flag any row still unanswered (shouldn't normally reach here, button is disabled until complete).
+  // Gently flag anything still unanswered (shouldn't normally reach here, button is disabled until complete).
   let allDone = true;
   gemsContainer.querySelectorAll(".sam").forEach(row => {
     const answered = state.clipAnswers[idx].gems[row.dataset.key] !== undefined;
     row.classList.toggle("pending", !answered);
     if (!answered) allDone = false;
   });
+  if (!descriptionAnswered(idx)) {
+    freeText.classList.add("pending");
+    allDone = false;
+  }
   if (!allDone) return;
 
   if (idx < state.clipOrder.length - 1) {
@@ -387,13 +414,13 @@ const noticeListEl = document.getElementById("notice-list");
 const noticeJustifyEl = document.getElementById("notice-justify");
 const noticeTimerLineEl = document.getElementById("notice-timer-line");
 
-function showPreClipNotice(minutesLabel, onProceed, { showInstructions = true } = {}) {
+function showPreClipNotice(minutesLabel, onProceed, { showInstructions = true, seconds = NOTICE_SECONDS } = {}) {
   recordTimeOnCurrentStep();
   hideStepChrome();
   noticeListEl.classList.toggle("hidden", !showInstructions);
   noticeJustifyEl.classList.toggle("hidden", showInstructions);
   noticeMinutesEl.textContent = minutesLabel;
-  let remaining = NOTICE_SECONDS;
+  let remaining = seconds;
   noticeCountdownEl.textContent = remaining;
   noticeTimerLineEl.classList.remove("hidden");
   setButtonRevealed(noticeProceedBtn, false);
@@ -565,7 +592,7 @@ const creditsList = document.getElementById("credits-links");
   a.href = url;
   a.target = "_blank";
   a.rel = "noopener noreferrer";
-  a.textContent = `${raga} — original recording`;
+  a.textContent = `${raga}: original recording`;
   li.appendChild(a);
   creditsList.appendChild(li);
 });
@@ -574,16 +601,16 @@ function renderInfoHeard() {
   const container = document.getElementById("info-heard");
   container.innerHTML = "";
   const famP = document.createElement("p");
-  famP.textContent = `Warm-up clip — ${FAMILIARISATION_RAGA} (not rated).`;
+  famP.textContent = `Warm-up clip: ${FAMILIARISATION_RAGA} (not rated).`;
   container.appendChild(famP);
   state.clipOrder.forEach((clip, idx) => {
     const p = document.createElement("p");
-    p.innerHTML = `Clip ${idx + 1} you rated — <strong>${clip.raga}</strong>, traditionally associated with ${clip.traditionalEmotion}.`;
+    p.innerHTML = `Clip ${idx + 1} you rated: <strong>${clip.raga}</strong>, traditionally associated with ${clip.traditionalEmotion}.`;
     container.appendChild(p);
   });
   const caveat = document.createElement("p");
   caveat.className = "fine";
-  caveat.textContent = "These rasa associations are broad cultural touchpoints passed down through performers and treatises, not a fixed rule — which is part of what this study is putting to the test.";
+  caveat.textContent = "These rasa associations are broad cultural touchpoints passed down through performers and treatises, not a fixed rule, which is part of what this study is putting to the test.";
   container.appendChild(caveat);
 }
 
@@ -597,11 +624,10 @@ document.getElementById("btn-info-back").addEventListener("click", () => {
 
 // ---- Share -----------------------------------------------------------------
 
-document.getElementById("btn-share").addEventListener("click", async () => {
-  const shareStatus = document.getElementById("share-status");
+async function shareSurvey(statusEl) {
   const url = location.origin + location.pathname;
   const shareData = {
-    title: "Beyond the Scale — Carnatic Rāga Listening Survey",
+    title: "Beyond the Scale: Carnatic Rāga Listening Survey",
     text: "A quick ~5 minute study on how Carnatic ragas make listeners feel:",
     url,
   };
@@ -615,8 +641,15 @@ document.getElementById("btn-share").addEventListener("click", async () => {
   }
   try {
     await navigator.clipboard.writeText(url);
-    shareStatus.textContent = "Link copied to clipboard.";
+    statusEl.textContent = "Link copied to clipboard.";
   } catch (e) {
-    shareStatus.textContent = url;
+    statusEl.textContent = url;
   }
+}
+
+document.getElementById("btn-share").addEventListener("click", () => {
+  shareSurvey(document.getElementById("share-status"));
+});
+document.getElementById("btn-share-info").addEventListener("click", () => {
+  shareSurvey(document.getElementById("share-status-info"));
 });

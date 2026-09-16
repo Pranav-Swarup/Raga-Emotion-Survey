@@ -40,7 +40,7 @@ const GITHUB_REPO_URL = "https://github.com/Pranav-Swarup/Raga-Emotion-Survey";
 // Fraction of a clip that must play before its rating controls unlock and
 // the Continue/Next button can appear. Only enforced on a clip's first listen
 // — replaying afterwards never re-locks the ratings.
-const LISTEN_THRESHOLD = 0.85;
+const LISTEN_THRESHOLD = 0.9;
 
 // ---- GEMS-9 -----------------------------------------------------------------
 // Fixed order and wording. Each item is rated 0 (not at all) to 4 (extremely).
