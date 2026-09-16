@@ -470,8 +470,10 @@ h1 {
   .play-btn { width: 46px; height: 46px; }
   .choice { padding: 13px 15px; font-size: 1rem; }
   .sam { padding-left: 8px; margin-bottom: 18px; }
-  .sam-scale { grid-template-columns: 1fr; gap: 6px; text-align: center; }
-  .sam-end:last-child { text-align: center; }
+  .sam-scale { grid-template-columns: 1fr; gap: 2px; }
+  .sam-end { display: block; }
+  .sam-end:first-child { text-align: left; }
+  .sam-end:last-child { text-align: right; }
   .dot { width: 30px; height: 30px; }
   .pill { padding: 8px 14px; font-size: 0.88rem; }
   .btn-primary { width: 100%; text-align: center; align-self: stretch; padding: 14px 20px; }
@@ -483,9 +485,12 @@ h1 {
   .step-indicator { font-size: 0.75rem; padding: 2px 8px; }
   h1 { font-size: 1.55rem; }
   /* not enough width for five dots in a row without crowding/wrapping —
-     stack the scale vertically instead: label, then 0-4 top to bottom, then label */
+     stack the scale vertically instead: label, then 0-4 top to bottom, then label.
+     Top-to-bottom order already shows which end is which, so centre both labels
+     over the column instead of the left/right split used for the horizontal row. */
   .dots { flex-direction: column; align-items: center; gap: 8px; }
   .dot { width: 34px; max-width: none; }
+  .sam-end:first-child, .sam-end:last-child { text-align: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
