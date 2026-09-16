@@ -260,7 +260,10 @@ h1 {
   overflow: hidden;
   cursor: pointer;
 }
-.seek.seek-locked { cursor: default; }
+.seek.seek-locked {
+  cursor: default;
+  pointer-events: none; /* physically inert while locked — absorbs taps/drags regardless of any JS check */
+}
 .seek-fill {
   height: 100%;
   width: 0;

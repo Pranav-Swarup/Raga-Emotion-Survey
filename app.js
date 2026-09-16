@@ -45,6 +45,11 @@ function fetchAudioBlobUrl(src) {
   return promise;
 }
 
+// Start downloading the familiarisation clip immediately on page load — the
+// respondent still has the consent and intro screens to get through before
+// they'd ever hit Play, which is free lead time.
+fetchAudioBlobUrl(FAMILIARISATION_SRC);
+
 function clipIndexForStep(step) {
   return (step >= 1 && step <= CLIPS.length) ? step - 1 : null;
 }
