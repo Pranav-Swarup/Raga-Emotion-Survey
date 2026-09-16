@@ -423,10 +423,7 @@ function descriptionAnswered(idx) {
 }
 
 function updateClipNextButton(idx) {
-  // TEMP (debug): `revealed` requirement disabled along with the listen-lock
-  // above. RE-ENABLE both together before final push:
-  // const revealed = !!state.clipListened[idx];
-  const revealed = true;
+  const revealed = !!state.clipListened[idx];
   nextBtn.classList.toggle("show", revealed);
   nextBtn.disabled = !(revealed && allGemsAnswered(idx) && descriptionAnswered(idx));
 }
@@ -458,10 +455,7 @@ function renderClip(idx) {
   freeText.classList.remove("pending");
 
   show("screen-clip");
-  // TEMP (debug): listen-lock disabled for testing the rating UI without
-  // waiting through full playback each time. RE-ENABLE before final push:
-  // if (state.clipListened[idx]) unlockRating(); else lockRating();
-  unlockRating();
+  if (state.clipListened[idx]) unlockRating(); else lockRating();
   updateClipNextButton(idx);
 }
 
