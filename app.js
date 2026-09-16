@@ -698,7 +698,7 @@ async function finish() {
       status.textContent = "Saved.";
     } catch (e) {
       console.error(e);
-      status.textContent = "Couldn't reach the server — your responses are still available below.";
+      status.textContent = "Couldn't reach the server — your responses are still available below. Please download and mail them to pranavswarup350@gmail.com";
     }
   } else {
     status.textContent = "No backend configured yet — download below.";
