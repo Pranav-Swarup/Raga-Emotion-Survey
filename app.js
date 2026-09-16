@@ -131,7 +131,7 @@ function renderStep(step) {
 
 // ---- Reusable audio player ------------------------------------------------
 
-function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, onEnded, onThreshold, thresholdPct = LISTEN_THRESHOLD }) {
+function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, loadingEl, onEnded, onThreshold, thresholdPct = LISTEN_THRESHOLD }) {
   const audio = new Audio();
   audio.preload = "metadata";
   let thresholdFired = false;
@@ -204,6 +204,13 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, on
     playBtn.classList.remove("playing");
     cancelAnimationFrame(visRafId);
   });
+  // These clips are large (tens of MB), so on a slow connection there can be
+  // a real wait between hitting play and sound actually starting.
+  if (loadingEl) {
+    audio.addEventListener("waiting", () => loadingEl.classList.remove("hidden"));
+    audio.addEventListener("playing", () => loadingEl.classList.add("hidden"));
+    audio.addEventListener("pause", () => loadingEl.classList.add("hidden"));
+  }
   audio.addEventListener("timeupdate", () => {
     const ratio = audio.duration ? audio.currentTime / audio.duration : 0;
     seekFill.style.width = (ratio * 100) + "%";
@@ -243,6 +250,7 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, on
       seekFill.parentElement.classList.add("seek-locked");
       seekFill.style.width = "0%";
       timeEl.textContent = "0:00";
+      if (loadingEl) loadingEl.classList.add("hidden");
     },
     unlockSeek() {
       seekLocked = false;
@@ -279,6 +287,7 @@ const famPlayer = makePlayer({
   timeEl: document.getElementById("fam-time"),
   replayBtn: null,
   visualizerCanvas: document.getElementById("fam-visualizer"),
+  loadingEl: document.getElementById("fam-loading"),
   onThreshold: () => {
     state.famListened = true;
     famPlayer.unlockSeek();
@@ -365,6 +374,7 @@ const clipPlayer = makePlayer({
   timeEl: document.getElementById("clip-time"),
   replayBtn: document.getElementById("clip-replay"),
   visualizerCanvas: document.getElementById("clip-visualizer"),
+  loadingEl: document.getElementById("clip-loading"),
   onThreshold: () => {
     const idx = clipIndexForStep(state.currentStep);
     if (idx == null) return;

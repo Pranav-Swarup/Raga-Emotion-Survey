@@ -206,6 +206,12 @@ h1 {
   align-items: center;
   gap: 14px;
 }
+.loading-indicator {
+  text-align: center;
+  font-style: italic;
+}
+.loading-indicator.hidden { display: none; }
+
 .visualizer {
   display: block;
   width: 100%;
@@ -319,13 +325,11 @@ h1 {
   display: flex;
   justify-content: space-between;
   gap: 6px;
-  min-width: 0;
 }
 .dot {
-  flex: 1;
-  min-width: 0;
-  aspect-ratio: 1;
-  max-width: 34px;
+  flex: none;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -468,7 +472,7 @@ h1 {
   .sam { padding-left: 8px; margin-bottom: 18px; }
   .sam-scale { grid-template-columns: 1fr; gap: 6px; text-align: center; }
   .sam-end:last-child { text-align: center; }
-  .dot { max-width: 30px; }
+  .dot { width: 30px; height: 30px; }
   .pill { padding: 8px 14px; font-size: 0.88rem; }
   .btn-primary { width: 100%; text-align: center; align-self: stretch; padding: 14px 20px; }
   .btn-ghost { width: 100%; text-align: center; align-self: stretch; }
