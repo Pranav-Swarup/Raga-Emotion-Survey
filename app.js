@@ -22,6 +22,11 @@ const state = {
 const TOTAL_STEPS = CLIPS.length + 1;
 const DEMOGRAPHICS_STEP = CLIPS.length + 1;
 const THRESHOLD_PCT = Math.round(LISTEN_THRESHOLD * 100);
+
+// Debug aid only: append ?dev to the URL to allow scrubbing the seek bar
+// before the listen threshold unlocks it. Never share a link with this on —
+// it lets anyone skip the required listening.
+const DEV_MODE = new URLSearchParams(location.search).has("dev");
 const NOTICE_SECONDS = 15;
 
 function clipIndexForStep(step) {
@@ -129,7 +134,6 @@ function renderStep(step) {
 function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, onEnded, onThreshold, thresholdPct = LISTEN_THRESHOLD }) {
   const audio = new Audio();
   audio.preload = "metadata";
-  audio.crossOrigin = "anonymous";
   let thresholdFired = false;
   let seekLocked = true; // no scrubbing ahead on the first listen — that would bypass the listen gate
 
@@ -212,7 +216,7 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, on
 
   // click-to-seek — locked until the first-listen threshold is reached
   seekFill.parentElement.addEventListener("click", (e) => {
-    if (seekLocked) return;
+    if (seekLocked && !DEV_MODE) return;
     const r = seekFill.parentElement.getBoundingClientRect();
     const ratio = (e.clientX - r.left) / r.width;
     if (audio.duration) audio.currentTime = ratio * audio.duration;
