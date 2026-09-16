@@ -7,7 +7,7 @@
 const state = {
   respondentId: crypto.randomUUID(),
   famListened: false,
-  clipOrder: [...CLIPS], // fixed order: Abheri, then Reethigowla — not randomised
+  clipOrder: shuffle([...CLIPS]),
   clipListened: CLIPS.map(() => false),
   clipAnswers: CLIPS.map(() => ({ gems: {} })), // {gems: {key: 0-4}, free_text, timeSpentMs}
   demographics: { training: null, listening_frequency: null, familiar: null, course_student: null, roll_number: null, name: null },
@@ -26,6 +26,14 @@ const NOTICE_SECONDS = 15;
 
 function clipIndexForStep(step) {
   return (step >= 1 && step <= CLIPS.length) ? step - 1 : null;
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 // ---- Progress bar + step indicator ----------------------------------------
@@ -183,6 +191,9 @@ function setButtonRevealed(btn, revealed) {
 document.getElementById("btn-start").addEventListener("click", () => {
   show("screen-fam-intro");
 });
+
+document.getElementById("fam-intro-lede").textContent =
+  `${FAMILIARISATION_RAGA} is also a janya raga of ${FAMILIARISATION_MELAKARTA[0].toUpperCase()}${FAMILIARISATION_MELAKARTA.slice(1)} — the same melakarta as the clips you'll rate — so hearing it first helps neutralise both timbre and scale as sources of bias. The order the two rated clips play in is also randomised for you, to clear out whatever bias is left.`;
 
 document.getElementById("btn-fam-intro-proceed").addEventListener("click", () => {
   goToStep(0);
@@ -537,4 +548,75 @@ document.getElementById("btn-download-csv").addEventListener("click", () => {
   const a = document.createElement("a");
   a.href = url; a.download = `raga-survey_${state.respondentId}.csv`; a.click();
   URL.revokeObjectURL(url);
+});
+
+// ---- Info / debrief screen (reveals what was actually heard, hypothesis, credits) --
+
+document.getElementById("performer-name").textContent = PERFORMER_NAME;
+document.getElementById("github-link").href = GITHUB_REPO_URL;
+
+const creditsList = document.getElementById("credits-links");
+[
+  { raga: FAMILIARISATION_RAGA, url: FAMILIARISATION_SOURCE_URL },
+  ...CLIPS.map(c => ({ raga: c.raga, url: c.sourceUrl })),
+].forEach(({ raga, url }) => {
+  const li = document.createElement("li");
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.textContent = `${raga} — original recording`;
+  li.appendChild(a);
+  creditsList.appendChild(li);
+});
+
+function renderInfoHeard() {
+  const container = document.getElementById("info-heard");
+  container.innerHTML = "";
+  const famP = document.createElement("p");
+  famP.textContent = `Warm-up clip — ${FAMILIARISATION_RAGA} (not rated).`;
+  container.appendChild(famP);
+  state.clipOrder.forEach((clip, idx) => {
+    const p = document.createElement("p");
+    p.innerHTML = `Clip ${idx + 1} you rated — <strong>${clip.raga}</strong>, traditionally associated with ${clip.traditionalEmotion}.`;
+    container.appendChild(p);
+  });
+  const caveat = document.createElement("p");
+  caveat.className = "fine";
+  caveat.textContent = "These rasa associations are broad cultural touchpoints passed down through performers and treatises, not a fixed rule — which is part of what this study is putting to the test.";
+  container.appendChild(caveat);
+}
+
+document.getElementById("btn-know-more").addEventListener("click", () => {
+  renderInfoHeard();
+  show("screen-info");
+});
+document.getElementById("btn-info-back").addEventListener("click", () => {
+  show("screen-done");
+});
+
+// ---- Share -----------------------------------------------------------------
+
+document.getElementById("btn-share").addEventListener("click", async () => {
+  const shareStatus = document.getElementById("share-status");
+  const url = location.origin + location.pathname;
+  const shareData = {
+    title: "Beyond the Scale — Carnatic Rāga Listening Survey",
+    text: "A quick ~5 minute study on how Carnatic ragas make listeners feel:",
+    url,
+  };
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData);
+    } catch (e) {
+      // user cancelled the share sheet — not an error worth reporting
+    }
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    shareStatus.textContent = "Link copied to clipboard.";
+  } catch (e) {
+    shareStatus.textContent = url;
+  }
 });

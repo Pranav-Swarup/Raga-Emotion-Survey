@@ -1,53 +1,49 @@
-# Beyond the Scale — Carnatic rāga listening survey
+# Beyond the Scale
 
-Low-friction listener survey using the **GEMS-9** emotion instrument: consent → familiarisation clip → replayable music clips (nine GEMS-9 ratings + one optional word each) → demographics → done. One tap per screen where possible, a thick progress bar with a "step X/Y" indicator up top, custom audio player, clips replayable, back/forward arrows to review or edit earlier answers, and a phone-first layout.
+### Does a raga's feeling live in its scale, or in how that scale is played?
 
-## Try it locally
-`python3 -m http.server` in this folder, open localhost:8000. No backend needed to test — you get a CSV download at the end if `config.js` isn't filled in.
+A raga is not its scale. Two ragas can draw on the exact same set of swaras — the same *arohana* and *avarohana* — and still stand apart as completely distinct musical entities, each with its own characteristic phrases, gamakas, emphasised notes, and settled emotional character. This is familiar to any trained Carnatic listener, encoded in the everyday distinction between a **melakarta** and its **janya ragas**. But it has rarely been *tested* — most research on raga and emotion studies ragas of different scales, and simply asserts the shared-scale case rather than measuring it.
 
-## Content config
-All clip URLs, the GEMS-9 items, and the demographics options live in `survey-config.js` — edit that file, not `app.js`, to change content. `config.js` is separate and holds only the Supabase connection (URL + anon key).
+This project tests it directly, with real listeners: **do janya ragas of a single melakarta — sharing the identical scale — actually evoke distinct emotional responses?**
 
-## Interaction details
-- **Progress bar + step indicator.** The bar at the top fills as you move through familiarisation → each clip, reaching full on the last clip. The "X/Y" pill top-left (in the accent red) bumps with a small animation whenever the step changes. Demographics is a final, uncounted screen after that — no bar movement, no pill, no nav arrows.
-- **Listen-gated ratings.** On the familiarisation clip and on every music clip, the rating controls stay locked (with a "please finish listening" message) and the Continue/Next button stays invisible until 75% of the audio has played (`LISTEN_THRESHOLD` in `survey-config.js`). For clips, Next also needs all nine GEMS-9 items answered — the free-text word is optional.
-- **Gentle enforcement.** If you try to leave a clip with items unanswered, those rows get a subtle highlight rather than a hard block.
-- **Interstitial pause.** A brief neutral "next clip loading" pause (`INTERSTITIAL_MS` in `app.js`, default 3s) sits between clips so one clip's emotion doesn't bleed into the rating of the next. The next clip's audio preloads during this pause and while you're rating the current one.
-- **Back/forward arrows.** Faint arrows pinned to the bottom corners let a respondent step back to a previous screen (to change an answer) and forward again to where they left off. They grey out completely at the two ends of the flow — you can't skip ahead of your furthest answered step, only revisit ones you've already done. The interstitial itself isn't a navigable step.
-- **Phone-first.** Layout, tap targets, and the button/arrow sizing are tuned for narrow viewports (safe-area insets included for notched phones); it also works fine on desktop.
+If they do, then a raga's emotional identity cannot be reduced to its notes. It lives in the raga's characteristic *treatment* of those notes — its phrases, its ornamentation, what it emphasises and what it deliberately leaves out.
 
-## Swap in real clips
-Edit the `CLIPS` array in `survey-config.js`: each needs `id`, `label`, `src` (hosted audio URL), and metadata `melakarta` / `raga` (stored with each response, never shown — the study is a blind comparison). Replace `FAMILIARISATION_SRC` with your warm-up clip. A Supabase storage bucket is a convenient place to host the audio in the same free project.
+## The study
 
-## Backend (Supabase, free)
-**Fresh project:**
-1. Create a project at [supabase.com](https://supabase.com) (free tier, no credit card).
-2. SQL Editor → New query → paste in `schema.sql` → Run. This creates the `submissions` table with an insert-only public policy (anon key can write, not read).
-3. Project Settings → API → copy the **Project URL** and **anon public** key into `config.js` (`SUPABASE_URL`, `SUPABASE_ANON_KEY`).
-4. Reload the app — the "Done" screen will now say "Saved." instead of "No backend configured yet."
-5. Export data any time: Table Editor → `submissions` → Export → CSV.
+Two janya ragas of **Kharaharapriya** are compared: **Abheri** and **Reethigowla**. Both are built on exactly the same seven notes; nothing about the scale distinguishes them.
 
-**Existing project** (already has a `submissions` table from an earlier version of this app): run `migration.sql` instead of `schema.sql` — it only adds the new GEMS-9/demographics columns and never touches existing rows or drops anything.
+- Listeners hear a short **familiarisation clip** first — in **Brindavani**, also a Kharaharapriya janya — so the instrument's timbre and the melakarta's sound are already familiar before any rating begins, and don't bias the responses that follow.
+- The **order** the two rated clips are played in is randomised for every listener, clearing out whatever bias is left.
+- A short pause with a visible countdown sits between clips, so the feeling from one doesn't carry into the rating of the next.
+- Emotional response is measured with **GEMS-9** (the Geneva Emotional Music Scale) — nine validated emotion dimensions (wonder, transcendence, tenderness, nostalgia, peacefulness, power, joyful activation, tension, sadness), each rated 0–4 — rather than a home-made list of moods.
+- All three clips are matched **solo violin** renditions by the same artist, so the raga itself is the only thing varying — not the instrument, not the performer.
 
-Until you fill in `config.js`, the app still works end-to-end — it just skips the network call and offers a CSV download instead, so you can test the full flow before wiring up Supabase.
+**Take the survey:** [beyond-the-scale on GitHub Pages](https://pranav-swarup.github.io/Raga-Emotion-Survey/) — about 5 minutes, headphones recommended.
 
-**Data API settings** (Project Settings → Data API): turn Data API **on**; leave "Automatically expose new tables" **off** (recommended) — `schema.sql`/`migration.sql` grant the `anon` role insert access explicitly, so you don't need blanket auto-exposure.
+## What is a melakarta? What is a janya raga?
 
-## Host (free)
-This is a static site with no build step, so any of these work with a free tier:
-- **Netlify** — easiest: drag the whole folder onto [app.netlify.com/drop](https://app.netlify.com/drop). `netlify.toml` (already in this folder) sets long-lived caching for the audio files.
-- **Vercel** — `vercel` CLI or connect a GitHub repo at [vercel.com/new](https://vercel.com/new), no config needed for a static site.
-- **GitHub Pages** — push this folder to a GitHub repo, then Settings → Pages → deploy from the branch/root.
+For anyone outside Carnatic music: a **melakarta** is one of the 72 parent scales of the system — a fixed set of seven notes, nothing more. On its own, a scale carries no fixed mood.
 
-All three give a free HTTPS URL. Do this *after* filling in `config.js`, or update `config.js` and redeploy once Supabase is set up.
+A **janya raga** is "born from" a melakarta: it can use the same notes (or a subset of them), but it adds its own characteristic phrases, *gamakas* (ornamentation), notes it lingers on, and notes it deliberately avoids. That treatment — not the bare note-set — is where a raga's identity, and arguably its feeling, actually lives.
 
-Free-tier Supabase projects auto-pause after about a week with no API activity. If the survey will sit untouched for long stretches, either check the dashboard periodically during collection or set up a scheduled ping (e.g. a GitHub Actions cron hitting the REST endpoint) to keep it awake.
+So judging a raga's emotional character by its scale alone is a bit like judging a language by its alphabet: two ragas from the same melakarta can be built from the same seven notes and still say very different things. That's the assumption this project puts to an actual test, rather than taking it on faith.
 
-## Data shape
-One row per clip per respondent: `respondent_id, clip_id, melakarta, raga, presentation_order, wonder, transcendence, tenderness, nostalgia, peacefulness, power, joyful_activation, tension, sadness, free_text, time_spent_ms, age, training, years_of_training, listening_frequency, familiar, course_student, roll_number, name, created_at`. Clip order is fixed (Abheri, then Reethigowla) — not randomised. Demographics are collected once per respondent and repeated on each of their clip rows.
+## Credits
 
-## Notes / easy adjustments
-- GEMS-9 is the only instrument — no valence/arousal, no second scale.
-- No forced-listen gate on replay — clips can be replayed freely; what's gated on 75% playback is the *first* appearance of the rating controls and the Next/Continue button, per `LISTEN_THRESHOLD` in `survey-config.js`.
-- Progress bar and step indicator count familiarisation + each clip only; demographics is a final uncounted screen.
-- Back/forward navigation restores previously entered ratings/selections when you revisit a step.
+All three clips are solo violin renditions by **Smt. Lalgudi Vijayalakshmi**, a senior disciple of Sri Lalgudi G. Jayaraman and an accomplished Carnatic violinist in her own right, shared here with her generous permission.
+
+- [Abheri — original recording](https://soundcloud.com/lalgudivijayalakshmi/abheri)
+- [Reethigowla — original recording](https://www.facebook.com/lalgudivijayalakshmi/videos/reetigowla-healing-ragas-with-lalgudi-vijayalakshmi/262962975046544/)
+- [Brindavani — original recording](https://www.facebook.com/lalgudivijayalakshmi/videos/brindavani-raga-healing-ragas-by-lalgudi-vijayalakshmi/222614522502102/)
+
+## Citations
+
+- Zentner, M., Grandjean, D., & Scherer, K. R. (2008). Emotions evoked by the sound of music: characterization, classification, and measurement. *Emotion*, 8(4), 494–521. — source of the GEMS-9 scale used here.
+- Balkwill, L., & Thompson, W. F. (1999). A cross-cultural investigation of the perception of emotion in music. *Music Perception*, 17(1), 43–64.
+- Chordia, P., & Rae, A. (2008). Understanding emotion in raag: an empirical study of listener responses. *Proc. CMMR*.
+- Mathur, A., et al. (2015). Emotional responses to Hindustani raga music: the role of musical structure. *Frontiers in Psychology*, 6:513.
+- Koduri, G. K., & Indurkhya, B. (2010). A behavioral study of emotions in South Indian classical music. *SAPMIA '10*, ACM.
+
+## Open source
+
+This survey's code, and eventually its results, are released openly so the stimuli and instrument can be reused and scrutinised by anyone. It's a semester project for the Music Workshop course at IIIT Hyderabad. If you're looking to run, adapt, or self-host this survey rather than take it or read about it, see [`DEVELOPMENT.md`](DEVELOPMENT.md).

@@ -5,12 +5,37 @@
 // `melakarta` / `raga` are stored as metadata with each response, never shown
 // to the respondent (the study is a blind comparison of ragas sharing a scale).
 
+// `traditionalEmotion` is a broad, commonly-cited rasa association for the
+// debrief screen — rasa attribution varies between musicians/treatises and
+// isn't a fixed scientific label, which the debrief text says explicitly.
 const CLIPS = [
-  { id: "abheri", label: "Lalgudi Violin — Abheri", src: "audio/Smt Lalgudi Violin Abheri.wav", melakarta: "kharaharapriya", raga: "Abheri" },
-  { id: "reethigowla", label: "Lalgudi Violin — Reethigowla", src: "audio/Smt Lalgudi Violin Reethigowla.wav", melakarta: "kharaharapriya", raga: "Reethigowla" },
+  {
+    id: "abheri",
+    label: "Lalgudi Violin — Abheri",
+    src: "audio/Abheri Smt Lalgudi Vijayalakshmi.wav",
+    melakarta: "kharaharapriya",
+    raga: "Abheri",
+    traditionalEmotion: "compassion and tender longing (karuna rasa)",
+    sourceUrl: "https://soundcloud.com/lalgudivijayalakshmi/abheri",
+  },
+  {
+    id: "reethigowla",
+    label: "Lalgudi Violin — Reethigowla",
+    src: "audio/Reethigowla Smt Lalgudi Vijayalakshmi.wav",
+    melakarta: "kharaharapriya",
+    raga: "Reethigowla",
+    traditionalEmotion: "devotion and quiet reverence (bhakti / shanta rasa)",
+    sourceUrl: "https://www.facebook.com/lalgudivijayalakshmi/videos/reetigowla-healing-ragas-with-lalgudi-vijayalakshmi/262962975046544/",
+  },
 ];
 
-const FAMILIARISATION_SRC = "audio/familiarisation.wav";
+const FAMILIARISATION_SRC = "audio/Brindavani Smt Lalgudi Vijayalakshmi.wav";
+const FAMILIARISATION_RAGA = "Brindavani";
+const FAMILIARISATION_MELAKARTA = "kharaharapriya";
+const FAMILIARISATION_SOURCE_URL = "https://www.facebook.com/lalgudivijayalakshmi/videos/brindavani-raga-healing-ragas-by-lalgudi-vijayalakshmi/222614522502102/";
+
+const PERFORMER_NAME = "Smt. Lalgudi Vijayalakshmi";
+const GITHUB_REPO_URL = "https://github.com/Pranav-Swarup/Raga-Emotion-Survey";
 
 // Fraction of a clip that must play before its rating controls unlock and
 // the Continue/Next button can appear. Only enforced on a clip's first listen

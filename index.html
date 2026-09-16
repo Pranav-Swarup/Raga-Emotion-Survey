@@ -34,7 +34,7 @@
   <section id="screen-fam-intro" class="screen hidden">
     <p class="eyebrow">Before we start</p>
     <p class="q-big">This first clip is just to get you accustomed to the instrument's timbre.</p>
-    <p class="lede">Helps remove timbre as a source of bias. </p>
+    <p class="lede" id="fam-intro-lede"></p>
     <button id="btn-fam-intro-proceed" class="btn-primary">Proceed</button>
   </section>
 
@@ -142,6 +142,58 @@
     <p class="lede">That's everything. Your responses have been recorded.</p>
     <p id="save-status" class="fine"></p>
     <button id="btn-download-csv" class="btn-ghost">Download my responses</button>
+    <button id="btn-know-more" class="btn-ghost">Know more about this survey</button>
+    <button id="btn-share" class="btn-ghost">Share this survey</button>
+    <p class="fine" id="share-status"></p>
+  </section>
+
+  <!-- INFO / DEBRIEF (reached only from the Done screen) -->
+  <section id="screen-info" class="screen hidden">
+    <p class="eyebrow">About this study</p>
+    <h1>Beyond the Scale</h1>
+
+    <p class="section-label">What you just heard</p>
+    <div id="info-heard"><!-- filled in to match this respondent's actual clip order --></div>
+
+    <p class="section-label">The hypothesis</p>
+    <ul class="point-list">
+      <li>A raga is not just its scale. Two ragas can share the exact same notes and still feel completely different, because of how those notes are approached, ornamented, and emphasised.</li>
+      <li>This study tests that directly: do Abheri and Reethigowla — two janya ragas of the same Kharaharapriya melakarta — actually make listeners feel different things?</li>
+      <li>If they do, a raga's emotional identity can't be reduced to its scale alone — it lives in the raga's characteristic treatment of the notes.</li>
+    </ul>
+
+    <p class="section-label">Method, briefly</p>
+    <ul class="point-list">
+      <li>A familiarisation clip (Brindavani, also a Kharaharapriya janya) comes first, to settle you into the instrument's timbre and the melakarta's sound before any rating — reducing timbre and scale as sources of bias.</li>
+      <li>The order the two rated clips play in is randomised per listener, and a short pause sits between them, so one clip's mood doesn't carry into the next rating.</li>
+      <li>Emotional response is measured with GEMS-9 (the Geneva Emotional Music Scale) — a validated nine-dimension scale from music-psychology research — rather than an ad-hoc list of moods.</li>
+      <li>All three clips are matched instrumental solo-violin renditions by the same performer, so the raga is the variable being tested, not the instrument or the artist.</li>
+    </ul>
+
+    <p class="section-label">What is a melakarta? What is a janya raga?</p>
+    <ul class="point-list">
+      <li>A melakarta is one of the 72 parent scales of Carnatic music — a fixed set of seven notes, nothing more. It has no built-in mood of its own.</li>
+      <li>A janya raga is "derived" from a melakarta: it can use the same notes (or a subset), but adds its own characteristic phrases, gamakas (ornamentation), emphasised notes, and notes it deliberately avoids. That treatment is where a raga's identity, and its feeling, actually lives — not in the bare list of notes.</li>
+      <li>So judging a raga's emotional character by its scale alone is a bit like judging a language by its alphabet: two ragas from one melakarta can be built from the same seven notes and still say very different things.</li>
+    </ul>
+
+    <p class="section-label">Citations</p>
+    <ul class="point-list citations">
+      <li>Zentner, M., Grandjean, D., & Scherer, K. R. (2008). Emotions evoked by the sound of music: characterization, classification, and measurement. <em>Emotion</em>, 8(4), 494–521. — source of the GEMS-9 scale used here.</li>
+      <li>Balkwill, L., & Thompson, W. F. (1999). A cross-cultural investigation of the perception of emotion in music. <em>Music Perception</em>, 17(1), 43–64.</li>
+      <li>Chordia, P., & Rae, A. (2008). Understanding emotion in raag: an empirical study of listener responses. <em>Proc. CMMR</em>.</li>
+      <li>Mathur, A., et al. (2015). Emotional responses to Hindustani raga music: the role of musical structure. <em>Frontiers in Psychology</em>, 6:513.</li>
+      <li>Koduri, G. K., & Indurkhya, B. (2010). A behavioral study of emotions in South Indian classical music. <em>SAPMIA '10</em>, ACM.</li>
+    </ul>
+
+    <p class="section-label">Credits</p>
+    <p class="lede">All three clips are solo violin renditions by <strong id="performer-name"></strong>, a senior disciple of Sri Lalgudi G. Jayaraman and an accomplished Carnatic violinist in her own right — shared here with her generous permission.</p>
+    <ul class="point-list credits-list" id="credits-links"><!-- filled in with source links --></ul>
+
+    <p class="section-label">Open source</p>
+    <p class="lede">The code behind this survey is open source. <a id="github-link" href="#" target="_blank" rel="noopener noreferrer">View it on GitHub</a>.</p>
+
+    <button id="btn-info-back" class="btn-primary">Back</button>
   </section>
 
 </main>
