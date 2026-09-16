@@ -58,17 +58,17 @@ function updateStepIndicator(step) {
 
 function hideStepChrome() {
   stepIndicator.classList.add("hidden");
-  bottomNav.classList.add("hidden");
+  stepNav.classList.add("hidden");
 }
 
 // ---- Bottom nav (back / forward through answered steps) -------------------
 
-const bottomNav = document.getElementById("bottom-nav");
+const stepNav = document.getElementById("step-nav");
 const navBack = document.getElementById("nav-back");
 const navForward = document.getElementById("nav-forward");
 
-function updateBottomNav(step) {
-  bottomNav.classList.remove("hidden");
+function updateStepNav(step) {
+  stepNav.classList.remove("hidden");
   navBack.disabled = step <= 0;
   navForward.disabled = step >= state.maxStep;
 }
@@ -118,7 +118,7 @@ function renderStep(step) {
     return;
   }
   updateStepIndicator(step);
-  updateBottomNav(step);
+  updateStepNav(step);
   setProgress(step);
   if (step === 0) renderFam();
   else renderClip(clipIndexForStep(step));
@@ -126,9 +126,10 @@ function renderStep(step) {
 
 // ---- Reusable audio player ------------------------------------------------
 
-function makePlayer({ playBtn, seekFill, timeEl, replayBtn, onEnded, onThreshold, thresholdPct = LISTEN_THRESHOLD }) {
+function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, onEnded, onThreshold, thresholdPct = LISTEN_THRESHOLD }) {
   const audio = new Audio();
   audio.preload = "metadata";
+  audio.crossOrigin = "anonymous";
   let thresholdFired = false;
   let seekLocked = true; // no scrubbing ahead on the first listen — that would bypass the listen gate
 
@@ -138,11 +139,62 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, onEnded, onThreshold
     return `${m}:${String(sec).padStart(2, "0")}`;
   }
 
+  // ---- subtle waveform visualizer, driven by the Web Audio API ----
+  let analyser = null, freqData = null, visRafId = null;
+  function setupVisualizer() {
+    if (!visualizerCanvas || analyser) return; // createMediaElementSource can only run once per <audio>
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+      const source = ctx.createMediaElementSource(audio);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 64;
+      analyser.smoothingTimeConstant = 0.8;
+      source.connect(analyser);
+      analyser.connect(ctx.destination);
+      freqData = new Uint8Array(analyser.frequencyBinCount);
+    } catch (e) {
+      analyser = null; // e.g. Web Audio unsupported — visualizer just stays empty
+    }
+  }
+  function drawVisualizer() {
+    if (!analyser) return;
+    const canvasCtx = visualizerCanvas.getContext("2d");
+    const w = visualizerCanvas.width, h = visualizerCanvas.height;
+    analyser.getByteFrequencyData(freqData);
+    canvasCtx.clearRect(0, 0, w, h);
+    const barCount = freqData.length;
+    const gap = 2;
+    const barWidth = (w - gap * (barCount - 1)) / barCount;
+    canvasCtx.fillStyle = "rgba(107, 31, 42, 0.55)";
+    for (let i = 0; i < barCount; i++) {
+      const barH = Math.max(2, (freqData[i] / 255) * h);
+      canvasCtx.fillRect(i * (barWidth + gap), h - barH, barWidth, barH);
+    }
+    visRafId = requestAnimationFrame(drawVisualizer);
+  }
+  function sizeVisualizerCanvas() {
+    if (!visualizerCanvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    visualizerCanvas.width = visualizerCanvas.clientWidth * dpr;
+    visualizerCanvas.height = visualizerCanvas.clientHeight * dpr;
+  }
+
   playBtn.addEventListener("click", () => {
     if (audio.paused) audio.play(); else audio.pause();
   });
-  audio.addEventListener("play", () => playBtn.classList.add("playing"));
-  audio.addEventListener("pause", () => playBtn.classList.remove("playing"));
+  audio.addEventListener("play", () => {
+    playBtn.classList.add("playing");
+    sizeVisualizerCanvas();
+    setupVisualizer();
+    if (analyser && analyser.context.state === "suspended") analyser.context.resume();
+    cancelAnimationFrame(visRafId);
+    drawVisualizer();
+  });
+  audio.addEventListener("pause", () => {
+    playBtn.classList.remove("playing");
+    cancelAnimationFrame(visRafId);
+  });
   audio.addEventListener("timeupdate", () => {
     const ratio = audio.duration ? audio.currentTime / audio.duration : 0;
     seekFill.style.width = (ratio * 100) + "%";
@@ -154,6 +206,7 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, onEnded, onThreshold
   });
   audio.addEventListener("ended", () => {
     playBtn.classList.remove("playing");
+    cancelAnimationFrame(visRafId);
     if (onEnded) onEnded();
   });
 
@@ -215,6 +268,7 @@ const famPlayer = makePlayer({
   seekFill: document.getElementById("fam-seek"),
   timeEl: document.getElementById("fam-time"),
   replayBtn: null,
+  visualizerCanvas: document.getElementById("fam-visualizer"),
   onThreshold: () => {
     state.famListened = true;
     famPlayer.unlockSeek();
@@ -299,6 +353,7 @@ const clipPlayer = makePlayer({
   seekFill: document.getElementById("clip-seek"),
   timeEl: document.getElementById("clip-time"),
   replayBtn: document.getElementById("clip-replay"),
+  visualizerCanvas: document.getElementById("clip-visualizer"),
   onThreshold: () => {
     const idx = clipIndexForStep(state.currentStep);
     if (idx == null) return;
