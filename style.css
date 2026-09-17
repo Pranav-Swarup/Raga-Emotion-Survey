@@ -121,6 +121,9 @@ h1 {
 .subtitle { font-style: italic; color: var(--muted); margin-bottom: 28px; }
 .lede { font-size: 1.15rem; margin-bottom: 18px; }
 .fine { font-size: 0.95rem; color: var(--muted); }
+
+.next-hint { margin-top: 10px; font-style: italic; }
+.next-hint.hidden { display: none; }
 .consent-line { margin-top: 18px; }
 
 /* buttons */

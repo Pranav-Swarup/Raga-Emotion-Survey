@@ -372,6 +372,7 @@ famNext.addEventListener("click", () => {
 // ---- Clips ------------------------------------------------------------------
 
 const nextBtn = document.getElementById("btn-next-clip");
+const nextHintEl = document.getElementById("next-hint");
 const freeText = document.getElementById("free-text");
 const gemsContainer = document.getElementById("gems-items");
 const ratingLocked = document.getElementById("clip-rating-locked");
@@ -486,8 +487,23 @@ function descriptionAnswered(idx) {
 
 function updateClipNextButton(idx) {
   const revealed = !!state.clipListened[idx];
+  const hasDescription = descriptionAnswered(idx);
+  const hasAllGems = allGemsAnswered(idx);
   nextBtn.classList.toggle("show", revealed);
-  nextBtn.disabled = !(revealed && allGemsAnswered(idx) && descriptionAnswered(idx));
+  nextBtn.disabled = !(revealed && hasAllGems && hasDescription);
+
+  if (!revealed || (hasDescription && hasAllGems)) {
+    nextHintEl.classList.add("hidden");
+  } else if (!hasDescription && !hasAllGems) {
+    nextHintEl.textContent = "Fill in the description above and select an option for every emotion scale.";
+    nextHintEl.classList.remove("hidden");
+  } else if (!hasDescription) {
+    nextHintEl.textContent = "Fill in the description above.";
+    nextHintEl.classList.remove("hidden");
+  } else {
+    nextHintEl.textContent = "Select an option for every emotion scale above.";
+    nextHintEl.classList.remove("hidden");
+  }
 }
 
 function preloadNextClip(afterIdx) {
