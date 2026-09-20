@@ -6,6 +6,7 @@
   --muted: #5c5245;
   --line: #e4dccf;
   --dot: #d8cfc2;
+  --results-highlight: #ece1d0; /* warm brown highlight used only on the results page's text blocks — kept separate from --accent-soft so the rest of the survey is untouched */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -508,7 +509,7 @@ h1 {
 .results-analysis {
   font-size: 1.08rem;
   line-height: 1.6;
-  background: var(--accent-soft);
+  background: var(--results-highlight);
   border-radius: 14px;
   padding: 18px 20px;
   margin: 22px 0 32px;
@@ -654,7 +655,7 @@ h1 {
      don't reintroduce a margin here, it would desync the two again. */
   width: calc((100% - (var(--items-per-view) - 1) * var(--gap, 12px)) / var(--items-per-view));
   box-sizing: border-box;
-  background: var(--accent-soft);
+  background: var(--results-highlight);
   border-left: 3px solid var(--accent);
   border-radius: 0 10px 10px 0;
   padding: 14px 16px;
