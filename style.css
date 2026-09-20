@@ -495,10 +495,7 @@ h1 {
   font-weight: 700;
   line-height: 1.05;
   margin-bottom: 8px;
-  background: linear-gradient(100deg, var(--accent), #a3434f 60%, var(--accent));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--accent);
 }
 .results-subtitle {
   font-size: 1.2rem;
@@ -538,22 +535,40 @@ h1 {
   font-weight: 700;
   color: var(--accent);
 }
+/* CSS-drawn triangle/bars instead of a text glyph — unicode play/pause
+   characters render as inconsistent, often garish emoji on mobile keyboards. */
 .mini-play-btn {
   flex: none;
   width: 34px; height: 34px;
   border-radius: 50%;
   border: 1px solid var(--accent);
   background: none;
-  color: var(--accent);
-  font-size: 0.85rem;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: relative;
   transition: background 0.15s, transform 0.12s;
 }
 .mini-play-btn:hover { background: var(--accent-soft); }
-.mini-play-btn.playing { background: var(--accent); color: #fff; }
+.mini-play-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%; left: 56%;
+  transform: translate(-50%, -50%);
+  border-style: solid;
+  border-width: 6px 0 6px 10px;
+  border-color: transparent transparent transparent var(--accent);
+}
+.mini-play-btn.playing {
+  background: var(--accent);
+}
+.mini-play-btn.playing::before {
+  border: none;
+  width: 9px; height: 10px;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background:
+    linear-gradient(#fff,#fff) left / 3px 100% no-repeat,
+    linear-gradient(#fff,#fff) right / 3px 100% no-repeat;
+}
 
 .results-n { margin-bottom: 6px; }
 .results-empty { font-style: italic; color: var(--muted); }
@@ -628,35 +643,41 @@ h1 {
 .quote-viewport { flex: 1; overflow: hidden; }
 .quote-track {
   display: flex;
+  gap: var(--gap, 12px);
   transition: transform 0.35s ease;
   --items-per-view: 1;
 }
 .quote-card {
   flex: none;
-  width: calc(100% / var(--items-per-view));
+  /* width must exactly match what render() in app.js measures via
+     getBoundingClientRect and uses for the pixel-based transform below —
+     don't reintroduce a margin here, it would desync the two again. */
+  width: calc((100% - (var(--items-per-view) - 1) * var(--gap, 12px)) / var(--items-per-view));
   box-sizing: border-box;
   background: var(--accent-soft);
   border-left: 3px solid var(--accent);
   border-radius: 0 10px 10px 0;
   padding: 14px 16px;
-  margin: 2px 8px 2px 0;
+  margin: 2px 0;
   font-size: 0.95rem;
   font-style: italic;
   color: var(--ink);
 }
 .quote-nav {
   flex: none;
-  width: 36px; height: 36px;
+  width: 44px; height: 44px;
   border-radius: 50%;
-  border: 1px solid var(--line);
+  border: 2px solid var(--accent);
   background: #fff;
   color: var(--accent);
-  font-size: 1.3rem;
+  font-size: 1.7rem;
+  font-weight: 700;
   line-height: 1;
   cursor: pointer;
-  transition: opacity 0.15s, border-color 0.15s;
+  transition: opacity 0.15s, background 0.15s, color 0.15s, transform 0.12s;
 }
-.quote-nav:hover:not(:disabled) { border-color: var(--accent); }
+.quote-nav:hover:not(:disabled) { background: var(--accent); color: #fff; transform: scale(1.06); }
+.quote-nav:active:not(:disabled) { transform: scale(0.96); }
 .quote-nav:disabled { opacity: 0.25; cursor: default; }
 .quote-nav.hidden { visibility: hidden; }
 
@@ -664,9 +685,22 @@ h1 {
   .results-title { font-size: 4rem; }
   .results-subtitle { font-size: 1.4rem; }
   .results-section { padding: 40px 44px 44px; }
-  .radar-svg { max-width: 460px; }
+  .radar-svg { max-width: 520px; }
   .radar-label { font-size: 12px; }
   .results-raga-title { font-size: 2.1rem; }
+
+  /* The results page is a standalone desktop layout, not part of the
+     mobile-first survey — widen only #app's own results screen, only while
+     it's showing (toggled in app.js), so the rest of the survey is untouched. */
+  body.results-mode #app { max-width: 1100px; padding-left: 48px; padding-right: 48px; }
+  .results-analysis { font-size: 1.2rem; padding: 24px 30px; }
+  .quote-card { font-size: 1.05rem; padding: 18px 20px; }
+}
+
+@media (min-width: 1100px) {
+  body.results-mode #app { max-width: 1300px; }
+  .results-title { font-size: 4.6rem; }
+  .radar-svg { max-width: 580px; }
 }
 
 @media (max-width: 480px) {
@@ -695,7 +729,7 @@ h1 {
   .results-section { padding: 20px 16px 22px; }
   .results-raga-title { font-size: 1.35rem; }
   .mini-play-btn { width: 30px; height: 30px; }
-  .quote-nav { width: 32px; height: 32px; font-size: 1.1rem; }
+  .quote-nav { width: 38px; height: 38px; font-size: 1.4rem; }
   .radar-tooltip { font-size: 0.78rem; padding: 8px 12px; }
   .nav-arrow { width: 32px; height: 32px; font-size: 1.3rem; }
 }

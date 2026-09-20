@@ -108,6 +108,9 @@ navForward.addEventListener("click", () => {
 function show(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.add("hidden"));
   document.getElementById(id).classList.remove("hidden");
+  // The results page is a wide desktop layout, not part of the mobile-first
+  // survey flow — #app widens only while it's showing (see style.css).
+  document.body.classList.toggle("results-mode", id === "screen-results");
   window.scrollTo(0, 0);
 }
 
@@ -430,23 +433,6 @@ function buildRadarSvg(averages) {
   </svg>`;
 }
 
-// Compares one raga's averages against the other's and describes the
-// biggest swings — shown as the hover tooltip over that raga's chart.
-function buildRadarInterpretation(averages, otherAverages) {
-  const diffs = GEMS9_ITEMS.map((item) => ({
-    label: item.label.toLowerCase(),
-    diff: (averages[item.key] || 0) - (otherAverages[item.key] || 0),
-  }));
-  const sorted = [...diffs].sort((a, b) => a.diff - b.diff);
-  const lower = sorted.filter((d) => d.diff < -0.05).slice(0, 2).map((d) => d.label);
-  const higher = sorted.filter((d) => d.diff > 0.05).slice(-2).reverse().map((d) => d.label);
-  const bits = [];
-  if (lower.length) bits.push(`less ${lower.join(" and ")}`);
-  if (higher.length) bits.push(`more ${higher.join(" and ")}`);
-  if (!bits.length) return "A very similar emotional profile to the other raga.";
-  return `${bits.join(", ")} than the other raga.`;
-}
-
 // A small play/pause button that plays a clip directly (no listen-lock —
 // this is a highlight/results page, not the survey itself). Only one clip
 // plays at a time across all the inline buttons on the page.
@@ -456,16 +442,15 @@ function makeInlinePlayButton(src) {
   btn.type = "button";
   btn.className = "mini-play-btn";
   btn.setAttribute("aria-label", "Play the clip again");
-  btn.textContent = "▶";
   let audio = null;
   btn.addEventListener("click", () => {
     if (audio && !audio.paused) { audio.pause(); return; }
     if (activeInlineAudio && activeInlineAudio !== audio) activeInlineAudio.pause();
     if (!audio) {
       audio = new Audio(src);
-      audio.addEventListener("play", () => { btn.textContent = "⏸"; btn.classList.add("playing"); });
-      audio.addEventListener("pause", () => { btn.textContent = "▶"; btn.classList.remove("playing"); });
-      audio.addEventListener("ended", () => { btn.textContent = "▶"; btn.classList.remove("playing"); });
+      audio.addEventListener("play", () => btn.classList.add("playing"));
+      audio.addEventListener("pause", () => btn.classList.remove("playing"));
+      audio.addEventListener("ended", () => btn.classList.remove("playing"));
     }
     activeInlineAudio = audio;
     audio.play();
@@ -512,12 +497,22 @@ function buildQuoteCarousel(quotes) {
 
   function itemsPerView() { return mq.matches ? 3 : 1; }
 
+  const GAP_PX = 12; // single source of truth — also written into --gap so the CSS width calc matches exactly
+
   function render() {
     const perView = itemsPerView();
     track.style.setProperty("--items-per-view", perView);
+    track.style.setProperty("--gap", `${GAP_PX}px`);
     const maxIndex = Math.max(0, quotes.length - perView);
     index = Math.min(index, maxIndex);
-    track.style.transform = `translateX(calc(-${index} * (100% / var(--items-per-view))))`;
+    // Measured from the actual rendered card, not recomputed via a parallel
+    // percentage formula — those two can round to different pixel values
+    // (especially on mobile device pixel ratios), and the gap compounds a
+    // little more with every step, which is what was clipping progressively.
+    const firstCard = track.children[0];
+    const cardWidth = firstCard ? firstCard.getBoundingClientRect().width : 0;
+    const offsetPx = index * (cardWidth + GAP_PX);
+    track.style.transform = `translateX(-${offsetPx}px)`;
     prevBtn.disabled = index <= 0;
     nextBtn.disabled = index >= maxIndex;
     const needsNav = quotes.length > perView;
@@ -533,7 +528,7 @@ function buildQuoteCarousel(quotes) {
   return wrap;
 }
 
-function renderResultsSection(container, clip, group, otherGroup) {
+function renderResultsSection(container, clip, group) {
   const section = document.createElement("div");
   section.className = "results-section";
 
@@ -562,7 +557,7 @@ function renderResultsSection(container, clip, group, otherGroup) {
   chartWrap.innerHTML = buildRadarSvg(group.averages);
   const tooltip = document.createElement("div");
   tooltip.className = "radar-tooltip";
-  tooltip.textContent = otherGroup ? buildRadarInterpretation(group.averages, otherGroup.averages) : "";
+  tooltip.textContent = clip.resultsInterpretation || "";
   chartWrap.appendChild(tooltip);
   chartWrap.addEventListener("mouseenter", () => chartWrap.classList.add("radar-hover"));
   chartWrap.addEventListener("mouseleave", () => chartWrap.classList.remove("radar-hover"));
@@ -596,10 +591,7 @@ function loadAndRenderResults() {
   }
 
   resultsBodyEl.innerHTML = "";
-  CLIPS.forEach((clip, i) => {
-    const other = CLIPS[(i + 1) % CLIPS.length];
-    renderResultsSection(resultsBodyEl, clip, byRaga[clip.raga], byRaga[other.raga]);
-  });
+  CLIPS.forEach((clip) => renderResultsSection(resultsBodyEl, clip, byRaga[clip.raga]));
 }
 
 // ---- Familiarisation ------------------------------------------------------

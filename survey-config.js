@@ -17,6 +17,7 @@ const CLIPS = [
     raga: "Abheri",
     traditionalEmotion: "compassion and tender longing (karuna rasa)",
     sourceUrl: "https://soundcloud.com/lalgudivijayalakshmi/abheri",
+    resultsInterpretation: "Abheri is perceived to have slightly more tension and sadness, but alongside high ratings for peacefulness and tenderness too. A sort of resolved yearning.",
   },
   {
     id: "reethigowla",
@@ -26,6 +27,7 @@ const CLIPS = [
     raga: "Reethigowla",
     traditionalEmotion: "devotion and quiet reverence (bhakti / shanta rasa)",
     sourceUrl: "https://www.facebook.com/lalgudivijayalakshmi/videos/reetigowla-healing-ragas-with-lalgudi-vijayalakshmi/262962975046544/",
+    resultsInterpretation: "Reethigowla is perceived to be more tender and has a slightly higher joyful activation, with lower tension and sadness than Abheri.",
   },
 ];
 
