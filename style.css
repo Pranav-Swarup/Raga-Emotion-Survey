@@ -6,7 +6,7 @@
   --muted: #5c5245;
   --line: #e4dccf;
   --dot: #d8cfc2;
-  --results-highlight: #ece1d0; /* warm brown highlight used only on the results page's text blocks — kept separate from --accent-soft so the rest of the survey is untouched */
+  --results-highlight: #e6e3de; /* light grey highlight used only on the results page's text blocks — kept separate from --accent-soft so the rest of the survey is untouched */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
