@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
 <title>Beyond the Scale: Carnatic Rāga Listening Survey</title>
 <link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
 </head>
 <body>
 
@@ -216,8 +217,8 @@
 
   <!-- RESULTS PASSWORD GATE (not part of the survey flow) -->
   <section id="screen-password" class="screen hidden">
-    <p class="eyebrow">Results preview</p>
-    <p class="q-big">This is a working preview for the project team while the survey is still open.</p>
+    <p class="eyebrow">Results</p>
+    <p class="q-big">Enter the password to continue.</p>
     <input type="password" id="results-password" class="word-in" placeholder="Password" autocomplete="off">
     <p class="fine password-error hidden" id="password-error">Incorrect password.</p>
     <button id="btn-password-submit" class="btn-primary">View results</button>
@@ -226,9 +227,13 @@
 
   <!-- RESULTS -->
   <section id="screen-results" class="screen hidden">
-    <p class="eyebrow">Preview · data still coming in</p>
-    <h1>Beyond the Scale</h1>
-    <p class="lede" id="results-summary"></p>
+    <div class="results-hero">
+      <p class="eyebrow">A Carnatic rāga listening study</p>
+      <h1 class="results-title">Beyond the Scale</h1>
+      <p class="results-subtitle">How Abheri and Reethigowla actually make listeners feel.</p>
+      <p class="lede" id="results-summary"></p>
+    </div>
+    <div class="results-analysis" id="results-analysis"></div>
     <div id="results-body"><!-- filled in by JS: one section per raga --></div>
     <button id="btn-publication" class="btn-ghost" disabled title="The paper hasn't been published yet">Read the publication</button>
     <button id="btn-results-back" class="btn-ghost">Back</button>
@@ -238,6 +243,7 @@
 
 <script src="config.js"></script>
 <script src="survey-config.js"></script>
+<script src="results-data.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

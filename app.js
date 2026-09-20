@@ -366,17 +366,6 @@ resultsPasswordInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") document.getElementById("btn-password-submit").click();
 });
 
-async function fetchResultRows() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/results_public?select=*`, {
-    headers: {
-      "apikey": SUPABASE_ANON_KEY,
-      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
-}
-
 function aggregateByRaga(rows) {
   const byRaga = {};
   rows.forEach((r) => {
@@ -441,31 +430,143 @@ function buildRadarSvg(averages) {
   </svg>`;
 }
 
-function renderResultsSection(container, raga, group) {
+// Compares one raga's averages against the other's and describes the
+// biggest swings — shown as the hover tooltip over that raga's chart.
+function buildRadarInterpretation(averages, otherAverages) {
+  const diffs = GEMS9_ITEMS.map((item) => ({
+    label: item.label.toLowerCase(),
+    diff: (averages[item.key] || 0) - (otherAverages[item.key] || 0),
+  }));
+  const sorted = [...diffs].sort((a, b) => a.diff - b.diff);
+  const lower = sorted.filter((d) => d.diff < -0.05).slice(0, 2).map((d) => d.label);
+  const higher = sorted.filter((d) => d.diff > 0.05).slice(-2).reverse().map((d) => d.label);
+  const bits = [];
+  if (lower.length) bits.push(`less ${lower.join(" and ")}`);
+  if (higher.length) bits.push(`more ${higher.join(" and ")}`);
+  if (!bits.length) return "A very similar emotional profile to the other raga.";
+  return `${bits.join(", ")} than the other raga.`;
+}
+
+// A small play/pause button that plays a clip directly (no listen-lock —
+// this is a highlight/results page, not the survey itself). Only one clip
+// plays at a time across all the inline buttons on the page.
+let activeInlineAudio = null;
+function makeInlinePlayButton(src) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "mini-play-btn";
+  btn.setAttribute("aria-label", "Play the clip again");
+  btn.textContent = "▶";
+  let audio = null;
+  btn.addEventListener("click", () => {
+    if (audio && !audio.paused) { audio.pause(); return; }
+    if (activeInlineAudio && activeInlineAudio !== audio) activeInlineAudio.pause();
+    if (!audio) {
+      audio = new Audio(src);
+      audio.addEventListener("play", () => { btn.textContent = "⏸"; btn.classList.add("playing"); });
+      audio.addEventListener("pause", () => { btn.textContent = "▶"; btn.classList.remove("playing"); });
+      audio.addEventListener("ended", () => { btn.textContent = "▶"; btn.classList.remove("playing"); });
+    }
+    activeInlineAudio = audio;
+    audio.play();
+  });
+  return btn;
+}
+
+// Quotes carousel: one card at a time on phones, three side by side on
+// desktop, paged with prev/next buttons.
+function buildQuoteCarousel(quotes) {
+  const wrap = document.createElement("div");
+  wrap.className = "quote-carousel";
+
+  const prevBtn = document.createElement("button");
+  prevBtn.type = "button";
+  prevBtn.className = "quote-nav prev";
+  prevBtn.setAttribute("aria-label", "Previous quotes");
+  prevBtn.textContent = "‹";
+
+  const viewport = document.createElement("div");
+  viewport.className = "quote-viewport";
+  const track = document.createElement("div");
+  track.className = "quote-track";
+  quotes.forEach((q) => {
+    const card = document.createElement("blockquote");
+    card.className = "quote-card";
+    card.textContent = `“${q}”`;
+    track.appendChild(card);
+  });
+  viewport.appendChild(track);
+
+  const nextBtn = document.createElement("button");
+  nextBtn.type = "button";
+  nextBtn.className = "quote-nav next";
+  nextBtn.setAttribute("aria-label", "Next quotes");
+  nextBtn.textContent = "›";
+
+  wrap.appendChild(prevBtn);
+  wrap.appendChild(viewport);
+  wrap.appendChild(nextBtn);
+
+  const mq = window.matchMedia("(min-width: 760px)");
+  let index = 0;
+
+  function itemsPerView() { return mq.matches ? 3 : 1; }
+
+  function render() {
+    const perView = itemsPerView();
+    track.style.setProperty("--items-per-view", perView);
+    const maxIndex = Math.max(0, quotes.length - perView);
+    index = Math.min(index, maxIndex);
+    track.style.transform = `translateX(calc(-${index} * (100% / var(--items-per-view))))`;
+    prevBtn.disabled = index <= 0;
+    nextBtn.disabled = index >= maxIndex;
+    const needsNav = quotes.length > perView;
+    prevBtn.classList.toggle("hidden", !needsNav);
+    nextBtn.classList.toggle("hidden", !needsNav);
+  }
+
+  prevBtn.addEventListener("click", () => { index = Math.max(0, index - 1); render(); });
+  nextBtn.addEventListener("click", () => { index = Math.min(quotes.length - itemsPerView(), index + 1); render(); });
+  mq.addEventListener("change", render);
+
+  render();
+  return wrap;
+}
+
+function renderResultsSection(container, clip, group, otherGroup) {
   const section = document.createElement("div");
   section.className = "results-section";
 
+  const titleRow = document.createElement("div");
+  titleRow.className = "results-title-row";
   const title = document.createElement("p");
   title.className = "results-raga-title";
-  title.textContent = raga;
-  section.appendChild(title);
-
-  const nLine = document.createElement("p");
-  nLine.className = "fine results-n";
-  section.appendChild(nLine);
+  title.textContent = clip.raga;
+  titleRow.appendChild(title);
+  titleRow.appendChild(makeInlinePlayButton(clip.src));
+  section.appendChild(titleRow);
 
   if (!group || !group.n) {
-    nLine.textContent = "No responses yet.";
-    section.appendChild(Object.assign(document.createElement("p"), { className: "results-empty", textContent: "Check back once more responses come in." }));
+    section.appendChild(Object.assign(document.createElement("p"), { className: "results-empty", textContent: "No responses yet." }));
     container.appendChild(section);
     return;
   }
 
-  nLine.textContent = `Based on ${group.n} response${group.n === 1 ? "" : "s"} so far.`;
+  const nLine = document.createElement("p");
+  nLine.className = "fine results-n";
+  nLine.textContent = `${group.n} response${group.n === 1 ? "" : "s"}.`;
+  section.appendChild(nLine);
 
   const chartWrap = document.createElement("div");
   chartWrap.className = "radar-wrap";
   chartWrap.innerHTML = buildRadarSvg(group.averages);
+  const tooltip = document.createElement("div");
+  tooltip.className = "radar-tooltip";
+  tooltip.textContent = otherGroup ? buildRadarInterpretation(group.averages, otherGroup.averages) : "";
+  chartWrap.appendChild(tooltip);
+  chartWrap.addEventListener("mouseenter", () => chartWrap.classList.add("radar-hover"));
+  chartWrap.addEventListener("mouseleave", () => chartWrap.classList.remove("radar-hover"));
+  chartWrap.addEventListener("click", () => chartWrap.classList.toggle("radar-hover"));
   section.appendChild(chartWrap);
 
   if (group.quotes.length) {
@@ -473,35 +574,32 @@ function renderResultsSection(container, raga, group) {
     heading.className = "results-subheading";
     heading.textContent = "In their own words";
     section.appendChild(heading);
-
-    const list = document.createElement("div");
-    list.className = "quotes-list";
-    group.quotes.forEach((q) => {
-      const bq = document.createElement("blockquote");
-      bq.className = "quote-card";
-      bq.textContent = `“${q}”`;
-      list.appendChild(bq);
-    });
-    section.appendChild(list);
+    section.appendChild(buildQuoteCarousel(group.quotes));
   }
 
   container.appendChild(section);
 }
 
-async function loadAndRenderResults() {
+function loadAndRenderResults() {
   show("screen-results");
-  resultsSummaryEl.textContent = "Loading…";
-  resultsBodyEl.innerHTML = "";
-  try {
-    const rows = await fetchResultRows();
-    const byRaga = aggregateByRaga(rows);
-    resultsSummaryEl.textContent = `${rows.length} clip rating${rows.length === 1 ? "" : "s"} collected so far.`;
-    CLIPS.forEach((clip) => renderResultsSection(resultsBodyEl, clip.raga, byRaga[clip.raga]));
-  } catch (e) {
-    console.error(e);
-    resultsSummaryEl.textContent = "";
-    resultsBodyEl.innerHTML = '<p class="fine">Couldn’t load results right now.</p>';
+  const rows = (typeof RESULTS_DATA !== "undefined") ? RESULTS_DATA : [];
+  const byRaga = aggregateByRaga(rows);
+  const totalListeners = CLIPS.length ? Math.round(rows.length / CLIPS.length) : 0;
+  resultsSummaryEl.textContent = `Based on ${totalListeners} listener${totalListeners === 1 ? "" : "s"}.`;
+
+  const a = byRaga[CLIPS[0].raga], b = byRaga[CLIPS[1].raga];
+  const analysisEl = document.getElementById("results-analysis");
+  if (a && b && a.n && b.n) {
+    analysisEl.textContent = `Even at this stage, the data shows a clear emotional tilt: ${CLIPS[0].raga} and ${CLIPS[1].raga} are already pulling toward opposite ends of the emotional spectrum, despite sharing the same underlying scale.`;
+  } else {
+    analysisEl.textContent = "";
   }
+
+  resultsBodyEl.innerHTML = "";
+  CLIPS.forEach((clip, i) => {
+    const other = CLIPS[(i + 1) % CLIPS.length];
+    renderResultsSection(resultsBodyEl, clip, byRaga[clip.raga], byRaga[other.raga]);
+  });
 }
 
 // ---- Familiarisation ------------------------------------------------------
