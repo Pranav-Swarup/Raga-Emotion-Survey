@@ -12,7 +12,7 @@ const CLIPS = [
   {
     id: "abheri",
     label: "Lalgudi Violin — Abheri",
-    src: "audio/Abheri Smt Lalgudi Vijayalakshmi.wav",
+    src: "audio/Abheri Smt Lalgudi Vijayalakshmi.mp3",
     melakarta: "kharaharapriya",
     raga: "Abheri",
     traditionalEmotion: "compassion and tender longing (karuna rasa)",
@@ -21,7 +21,7 @@ const CLIPS = [
   {
     id: "reethigowla",
     label: "Lalgudi Violin — Reethigowla",
-    src: "audio/Reethigowla Smt Lalgudi Vijayalakshmi.wav",
+    src: "audio/Reethigowla Smt Lalgudi Vijayalakshmi.mp3",
     melakarta: "kharaharapriya",
     raga: "Reethigowla",
     traditionalEmotion: "devotion and quiet reverence (bhakti / shanta rasa)",
@@ -29,7 +29,7 @@ const CLIPS = [
   },
 ];
 
-const FAMILIARISATION_SRC = "audio/Brindavani Smt Lalgudi Vijayalakshmi.wav";
+const FAMILIARISATION_SRC = "audio/Brindavani Smt Lalgudi Vijayalakshmi.mp3";
 const FAMILIARISATION_RAGA = "Brindavani";
 const FAMILIARISATION_MELAKARTA = "kharaharapriya";
 const FAMILIARISATION_SOURCE_URL = "https://www.facebook.com/lalgudivijayalakshmi/videos/brindavani-raga-healing-ragas-by-lalgudi-vijayalakshmi/222614522502102/";

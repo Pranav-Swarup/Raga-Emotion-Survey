@@ -29,140 +29,19 @@ const THRESHOLD_PCT = Math.round(LISTEN_THRESHOLD * 100);
 const DEV_MODE = new URLSearchParams(location.search).has("dev");
 const NOTICE_SECONDS = 15;
 
-// Clips are 30-50MB WAV files. Waiting for the whole file before Play is
-// enabled is too slow on bad wifi (e.g. college networks). Instead each clip
-// is streamed and cut into ~30s playable snapshots as the bytes arrive: Play
-// unlocks as soon as the first 30s is in, and while that plays, the rest
-// keeps downloading in the background and gets swapped in (without losing
-// playback position) each time another 30s becomes available, until the
-// whole clip is buffered. Loaders are shared across players/preloads, keyed
-// by src, so a clip already streaming isn't started twice.
-const CHUNK_SECONDS = 30;
-const audioLoaders = new Map(); // src -> loader
-
-function parseWavHeader(bytes) {
-  if (bytes.length < 44) return null;
-  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  let offset = 12; // skip "RIFF" size "WAVE"
-  let fmt = null;
-  while (offset + 8 <= bytes.length) {
-    const id = String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
-    const size = dv.getUint32(offset + 4, true);
-    const bodyStart = offset + 8;
-    if (id === "fmt " && bodyStart + 16 <= bytes.length) {
-      fmt = {
-        numChannels: dv.getUint16(bodyStart + 2, true),
-        sampleRate: dv.getUint32(bodyStart + 4, true),
-        bitsPerSample: dv.getUint16(bodyStart + 14, true),
-      };
-    } else if (id === "data") {
-      if (!fmt) return null; // malformed/unsupported chunk order — bail rather than guess
-      return { ...fmt, dataOffset: bodyStart, byteRate: fmt.numChannels * (fmt.bitsPerSample / 8) * fmt.sampleRate };
-    }
-    offset = bodyStart + size + (size % 2); // chunks are word-aligned
-  }
-  return null; // haven't reached the "data" chunk yet — retry once more bytes arrive
-}
-
-// Patches the RIFF and data chunk sizes in place so a truncated prefix of a
-// WAV file is a valid, independently-playable WAV file on its own.
-function patchWavHeaderSizes(bytes, dataOffset) {
-  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  dv.setUint32(4, bytes.length - 8, true);
-  dv.setUint32(dataOffset - 4, bytes.length - dataOffset, true);
-}
-
-function createAudioLoader(src) {
-  const listeners = [];
-  let header = null;
-  let chunks = [];
-  let totalLength = 0;
-  let nextBoundarySeconds = CHUNK_SECONDS;
-  let latestSnapshotUrl = null;
-  let resolveFullUrl;
-  const fullUrlPromise = new Promise(res => { resolveFullUrl = res; });
-
-  function concatenated() {
-    const out = new Uint8Array(totalLength);
-    let off = 0;
-    for (const c of chunks) { out.set(c, off); off += c.length; }
-    return out;
-  }
-
-  function emit(url, seconds, isFinal) {
-    const prev = latestSnapshotUrl;
-    latestSnapshotUrl = url;
-    listeners.forEach(fn => fn(url, seconds, isFinal));
-    if (prev && prev !== url) URL.revokeObjectURL(prev); // safe: listeners already swapped away from it above
-  }
-
-  function maybeEmitChunk(isFinal) {
-    if (!header) {
-      if (chunks.length > 1) chunks = [concatenated()];
-      header = parseWavHeader(chunks[0] || new Uint8Array(0));
-      if (!header) return;
-    }
-    const dataAvailable = totalLength - header.dataOffset;
-    if (dataAvailable <= 0) return;
-    const secondsAvailable = dataAvailable / header.byteRate;
-    if (!isFinal && secondsAvailable < nextBoundarySeconds) return;
-    if (chunks.length > 1) chunks = [concatenated()];
-    const combined = chunks[0];
-    patchWavHeaderSizes(combined, header.dataOffset);
-    const url = URL.createObjectURL(new Blob([combined], { type: "audio/wav" }));
-    nextBoundarySeconds += CHUNK_SECONDS;
-    emit(url, secondsAvailable, isFinal);
-    if (isFinal) resolveFullUrl(url);
-  }
-
-  fetch(src).then(res => {
-    const reader = res.body.getReader();
-    function pump() {
-      return reader.read().then(({ done, value }) => {
-        if (done) { maybeEmitChunk(true); return; }
-        chunks.push(value);
-        totalLength += value.length;
-        maybeEmitChunk(false);
-        return pump();
-      });
-    }
-    return pump();
-  }).catch(e => console.error("audio stream failed", src, e));
-
-  return {
-    // Delivers every future snapshot, plus the latest one immediately if one
-    // already exists (covers a clip preloaded before its player attaches).
-    onChunk(fn) {
-      listeners.push(fn);
-      if (latestSnapshotUrl) fn(latestSnapshotUrl, null, false);
-    },
-    fullUrlPromise,
-  };
-}
-
-function getAudioLoader(src) {
-  if (!audioLoaders.has(src)) audioLoaders.set(src, createAudioLoader(src));
-  return audioLoaders.get(src);
-}
-
-// Used by preloading call sites that just want the eventual complete clip
-// warmed into the cache and don't care about intermediate chunks.
+// Clips are mp3s (a few MB each — small enough to just fetch whole). Every
+// clip's audio is fully fetched into memory as a Blob before it's playable
+// at all, so once Play is enabled there's no network dependency left and no
+// mid-playback stalling on a bad connection. Shared across players so a clip
+// pre-fetched during the previous rating isn't downloaded twice.
+const audioBlobCache = new Map(); // src -> objectURL
 function fetchAudioBlobUrl(src) {
-  return getAudioLoader(src).fullUrlPromise;
-}
-
-// Swaps an <audio> element's source without losing playback position —
-// used when a bigger downloaded snapshot of the current clip becomes ready.
-function swapAudioSrcPreservingPlayback(audio, newSrc) {
-  const wasPlaying = !audio.paused;
-  const t = audio.currentTime;
-  const onLoaded = () => {
-    audio.removeEventListener("loadedmetadata", onLoaded);
-    audio.currentTime = t;
-    if (wasPlaying) audio.play().catch(() => {});
-  };
-  audio.addEventListener("loadedmetadata", onLoaded);
-  audio.src = newSrc;
+  if (audioBlobCache.has(src)) return audioBlobCache.get(src);
+  const promise = fetch(src)
+    .then(res => res.blob())
+    .then(blob => URL.createObjectURL(blob));
+  audioBlobCache.set(src, promise);
+  return promise;
 }
 
 // Start downloading the familiarisation clip immediately on page load — the
@@ -423,20 +302,11 @@ function makePlayer({ playBtn, seekFill, timeEl, replayBtn, visualizerCanvas, lo
       const myGeneration = ++loadGeneration;
       playBtn.disabled = true;
       if (loadingEl) loadingEl.classList.remove("hidden");
-
-      let haveFirstChunk = false;
-      getAudioLoader(src).onChunk((url) => {
+      fetchAudioBlobUrl(src).then((blobUrl) => {
         if (myGeneration !== loadGeneration) return; // superseded by a newer load() call
-        if (!haveFirstChunk) {
-          haveFirstChunk = true;
-          audio.src = url;
-          playBtn.disabled = false;
-          if (loadingEl) loadingEl.classList.add("hidden");
-        } else {
-          // A bigger snapshot (or the complete clip) just finished downloading
-          // in the background — swap it in seamlessly mid-listen.
-          swapAudioSrcPreservingPlayback(audio, url);
-        }
+        audio.src = blobUrl;
+        playBtn.disabled = false;
+        if (loadingEl) loadingEl.classList.add("hidden");
       });
     },
     unlockSeek() {
