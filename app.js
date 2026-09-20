@@ -332,6 +332,178 @@ document.getElementById("btn-fam-intro-proceed").addEventListener("click", () =>
   goToStep(0);
 });
 
+// ---- Results preview (password-gated, outside the survey flow) ------------
+// The password is just a soft speed bump while the survey is still open —
+// it's checked client-side and the anon key used to fetch results is public
+// in config.js regardless, so this is not real access control. What actually
+// protects respondents is results-view.sql, which only ever exposes a column
+// set with no name/roll_number/respondent_id.
+
+const RESULTS_PASSWORD = "1234";
+const resultsPasswordInput = document.getElementById("results-password");
+const passwordErrorEl = document.getElementById("password-error");
+const resultsSummaryEl = document.getElementById("results-summary");
+const resultsBodyEl = document.getElementById("results-body");
+
+document.getElementById("btn-view-results").addEventListener("click", () => {
+  resultsPasswordInput.value = "";
+  passwordErrorEl.classList.add("hidden");
+  show("screen-password");
+  resultsPasswordInput.focus();
+});
+document.getElementById("btn-password-back").addEventListener("click", () => show("screen-consent"));
+document.getElementById("btn-results-back").addEventListener("click", () => show("screen-consent"));
+
+document.getElementById("btn-password-submit").addEventListener("click", () => {
+  if (resultsPasswordInput.value !== RESULTS_PASSWORD) {
+    passwordErrorEl.classList.remove("hidden");
+    return;
+  }
+  passwordErrorEl.classList.add("hidden");
+  loadAndRenderResults();
+});
+resultsPasswordInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("btn-password-submit").click();
+});
+
+async function fetchResultRows() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/results_public?select=*`, {
+    headers: {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+function aggregateByRaga(rows) {
+  const byRaga = {};
+  rows.forEach((r) => {
+    if (!r.raga) return;
+    (byRaga[r.raga] || (byRaga[r.raga] = [])).push(r);
+  });
+  const result = {};
+  Object.entries(byRaga).forEach(([raga, group]) => {
+    const averages = {};
+    GEMS9_ITEMS.forEach((item) => {
+      const vals = group.map((r) => r[item.key]).filter((v) => v !== null && v !== undefined);
+      averages[item.key] = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    });
+    const quotes = group
+      .map((r) => (r.free_text || "").trim())
+      .filter((t) => t.length >= 15)
+      .filter((t, i, arr) => arr.indexOf(t) === i) // dedupe
+      .sort((a, b) => b.length - a.length) // longer, more thoughtful answers first
+      .slice(0, 5);
+    result[raga] = { n: group.length, averages, quotes };
+  });
+  return result;
+}
+
+// Nine-axis radar/spider chart — the standard way GEMS profiles are plotted.
+function buildRadarSvg(averages) {
+  const size = 320, center = size / 2, maxR = 108, maxVal = 4;
+  const n = GEMS9_ITEMS.length;
+  const angleFor = (i) => -Math.PI / 2 + i * (2 * Math.PI / n);
+  const pt = (r, a) => `${(center + r * Math.cos(a)).toFixed(1)},${(center + r * Math.sin(a)).toFixed(1)}`;
+
+  const gridPolys = [0.25, 0.5, 0.75, 1].map((level) => {
+    const pts = GEMS9_ITEMS.map((_, i) => pt(maxR * level, angleFor(i))).join(" ");
+    return `<polygon points="${pts}" class="radar-grid" />`;
+  }).join("");
+
+  const axisLines = GEMS9_ITEMS.map((_, i) => {
+    const a = angleFor(i);
+    return `<line x1="${center}" y1="${center}" x2="${center + maxR * Math.cos(a)}" y2="${center + maxR * Math.sin(a)}" class="radar-axis" />`;
+  }).join("");
+
+  const labels = GEMS9_ITEMS.map((item, i) => {
+    const a = angleFor(i);
+    const lr = maxR + 24;
+    const x = center + lr * Math.cos(a), y = center + lr * Math.sin(a);
+    const cosA = Math.cos(a);
+    const anchor = cosA > 0.3 ? "start" : cosA < -0.3 ? "end" : "middle";
+    return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}" dominant-baseline="middle" class="radar-label">${item.label}</text>`;
+  }).join("");
+
+  const dataPts = GEMS9_ITEMS.map((item, i) => pt(maxR * ((averages[item.key] || 0) / maxVal), angleFor(i))).join(" ");
+  const dots = GEMS9_ITEMS.map((item, i) => {
+    const a = angleFor(i);
+    const r = maxR * ((averages[item.key] || 0) / maxVal);
+    return `<circle cx="${(center + r * Math.cos(a)).toFixed(1)}" cy="${(center + r * Math.sin(a)).toFixed(1)}" r="4" class="radar-dot" />`;
+  }).join("");
+
+  return `<svg viewBox="0 0 ${size} ${size}" class="radar-svg" role="img" aria-label="GEMS-9 profile">
+    ${gridPolys}${axisLines}
+    <polygon points="${dataPts}" class="radar-data" />
+    ${dots}${labels}
+  </svg>`;
+}
+
+function renderResultsSection(container, raga, group) {
+  const section = document.createElement("div");
+  section.className = "results-section";
+
+  const title = document.createElement("p");
+  title.className = "results-raga-title";
+  title.textContent = raga;
+  section.appendChild(title);
+
+  const nLine = document.createElement("p");
+  nLine.className = "fine results-n";
+  section.appendChild(nLine);
+
+  if (!group || !group.n) {
+    nLine.textContent = "No responses yet.";
+    section.appendChild(Object.assign(document.createElement("p"), { className: "results-empty", textContent: "Check back once more responses come in." }));
+    container.appendChild(section);
+    return;
+  }
+
+  nLine.textContent = `Based on ${group.n} response${group.n === 1 ? "" : "s"} so far.`;
+
+  const chartWrap = document.createElement("div");
+  chartWrap.className = "radar-wrap";
+  chartWrap.innerHTML = buildRadarSvg(group.averages);
+  section.appendChild(chartWrap);
+
+  if (group.quotes.length) {
+    const heading = document.createElement("p");
+    heading.className = "results-subheading";
+    heading.textContent = "In their own words";
+    section.appendChild(heading);
+
+    const list = document.createElement("div");
+    list.className = "quotes-list";
+    group.quotes.forEach((q) => {
+      const bq = document.createElement("blockquote");
+      bq.className = "quote-card";
+      bq.textContent = `“${q}”`;
+      list.appendChild(bq);
+    });
+    section.appendChild(list);
+  }
+
+  container.appendChild(section);
+}
+
+async function loadAndRenderResults() {
+  show("screen-results");
+  resultsSummaryEl.textContent = "Loading…";
+  resultsBodyEl.innerHTML = "";
+  try {
+    const rows = await fetchResultRows();
+    const byRaga = aggregateByRaga(rows);
+    resultsSummaryEl.textContent = `${rows.length} clip rating${rows.length === 1 ? "" : "s"} collected so far.`;
+    CLIPS.forEach((clip) => renderResultsSection(resultsBodyEl, clip.raga, byRaga[clip.raga]));
+  } catch (e) {
+    console.error(e);
+    resultsSummaryEl.textContent = "";
+    resultsBodyEl.innerHTML = '<p class="fine">Couldn’t load results right now.</p>';
+  }
+}
+
 // ---- Familiarisation ------------------------------------------------------
 
 document.getElementById("fam-hint").textContent =

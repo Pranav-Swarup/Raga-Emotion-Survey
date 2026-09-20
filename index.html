@@ -32,6 +32,7 @@
     <p class="fine">Responses are anonymous.</p>
 
     <button id="btn-start" class="btn-primary">Begin</button>
+    <button id="btn-view-results" class="btn-small-muted">View results</button>
   </section>
 
   <!-- FAMILIARISATION INTRO (explains purpose, no audio yet) -->
@@ -211,6 +212,26 @@
     <button id="btn-share-info" class="btn-ghost">Share this survey</button>
     <p class="fine" id="share-status-info"></p>
     <button id="btn-info-back" class="btn-primary">Back</button>
+  </section>
+
+  <!-- RESULTS PASSWORD GATE (not part of the survey flow) -->
+  <section id="screen-password" class="screen hidden">
+    <p class="eyebrow">Results preview</p>
+    <p class="q-big">This is a working preview for the project team while the survey is still open.</p>
+    <input type="password" id="results-password" class="word-in" placeholder="Password" autocomplete="off">
+    <p class="fine password-error hidden" id="password-error">Incorrect password.</p>
+    <button id="btn-password-submit" class="btn-primary">View results</button>
+    <button id="btn-password-back" class="btn-ghost">Back</button>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="screen-results" class="screen hidden">
+    <p class="eyebrow">Preview · data still coming in</p>
+    <h1>Beyond the Scale</h1>
+    <p class="lede" id="results-summary"></p>
+    <div id="results-body"><!-- filled in by JS: one section per raga --></div>
+    <button id="btn-publication" class="btn-ghost" disabled title="The paper hasn't been published yet">Read the publication</button>
+    <button id="btn-results-back" class="btn-ghost">Back</button>
   </section>
 
 </main>

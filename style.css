@@ -170,6 +170,27 @@ h1 {
   cursor: pointer;
 }
 .btn-ghost:hover { background: var(--accent-soft); }
+.btn-ghost:disabled { opacity: 0.35; cursor: default; }
+.btn-ghost:disabled:hover { background: none; }
+
+.btn-small-muted {
+  display: block;
+  margin-top: 14px;
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.78rem;
+  padding: 5px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+.btn-small-muted:hover { opacity: 0.9; }
+
+.password-error { color: var(--accent); margin-top: 10px; }
+.password-error.hidden { display: none; }
 
 .tap-hint { margin-top: 16px; }
 
@@ -466,6 +487,53 @@ h1 {
 }
 .notice-timer.hidden { display: none; }
 
+/* results / analysis page */
+#results-body { margin-bottom: 10px; }
+.results-section {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 24px 22px 26px;
+  margin-bottom: 26px;
+  background: #fff;
+}
+.results-raga-title {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.results-n { margin-bottom: 6px; }
+.results-empty { font-style: italic; color: var(--muted); }
+
+.radar-wrap { display: flex; justify-content: center; margin: 10px 0 6px; }
+.radar-svg { width: 100%; max-width: 340px; height: auto; overflow: visible; }
+.radar-grid { fill: none; stroke: var(--line); stroke-width: 1; }
+.radar-axis { stroke: var(--line); stroke-width: 1; }
+.radar-data { fill: var(--accent); fill-opacity: 0.28; stroke: var(--accent); stroke-width: 2; }
+.radar-dot { fill: var(--accent); }
+.radar-label {
+  font-family: inherit;
+  font-size: 9.5px;
+  fill: var(--muted);
+}
+
+.results-subheading {
+  font-weight: 700;
+  font-size: 1rem;
+  margin: 22px 0 12px;
+  color: var(--ink);
+}
+.quotes-list { display: flex; flex-direction: column; gap: 10px; }
+.quote-card {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  padding: 12px 16px;
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--ink);
+}
+
 @media (max-width: 480px) {
   html, body { overflow-x: hidden; }
   #app { padding: 68px 18px 14vh; }
@@ -485,6 +553,9 @@ h1 {
   .pill { padding: 8px 14px; font-size: 0.88rem; }
   .btn-primary { width: 100%; text-align: center; align-self: stretch; padding: 14px 20px; }
   .btn-ghost { width: 100%; text-align: center; align-self: stretch; }
+  .btn-small-muted { align-self: flex-start; }
+  .results-section { padding: 20px 16px 22px; }
+  .results-raga-title { font-size: 1.35rem; }
   .nav-arrow { width: 32px; height: 32px; font-size: 1.3rem; }
 }
 
